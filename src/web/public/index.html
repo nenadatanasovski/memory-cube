@@ -418,6 +418,43 @@
       margin-left: 0;
     }
 
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 150px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1001;
+      display: none;
+    }
+
+    .context-menu.visible {
+      display: block;
+    }
+
+    .context-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .context-item:hover {
+      background: #0f3460;
+    }
+
+    .context-item.danger {
+      color: #e94560;
+    }
+
+    .context-divider {
+      height: 1px;
+      background: #0f3460;
+      margin: 4px 0;
+    }
+
     /* Modal */
     .modal-overlay {
       position: fixed;
@@ -741,6 +778,15 @@
         </div>
       </div>
 
+      <!-- Context Menu -->
+      <div class="context-menu" id="context-menu">
+        <div class="context-item" onclick="contextEdit()">✏️ Edit</div>
+        <div class="context-item" onclick="contextLink()">🔗 Add Link</div>
+        <div class="context-item" onclick="contextComplete()">✓ Mark Complete</div>
+        <div class="context-divider"></div>
+        <div class="context-item danger" onclick="contextDelete()">🗑️ Delete</div>
+      </div>
+
       <!-- Add Edge Modal -->
       <div class="modal-overlay" id="edge-modal-overlay" onclick="closeEdgeModal()">
         <div class="modal" onclick="event.stopPropagation()">
@@ -935,6 +981,27 @@
         if (evt.target === cy) {
           closeDetail();
         }
+      });
+
+      // Right-click context menu
+      cy.on('cxttap', 'node', (evt) => {
+        const node = evt.target;
+        currentNodeId = node.id();
+        
+        const menu = document.getElementById('context-menu');
+        const pos = evt.renderedPosition;
+        const container = document.querySelector('.graph-container').getBoundingClientRect();
+        
+        menu.style.left = (container.left + pos.x) + 'px';
+        menu.style.top = (container.top + pos.y) + 'px';
+        menu.classList.add('visible');
+        
+        evt.originalEvent.preventDefault();
+      });
+
+      // Hide context menu on click elsewhere
+      document.addEventListener('click', () => {
+        document.getElementById('context-menu').classList.remove('visible');
       });
 
       // Hover highlight for connected nodes
@@ -1212,6 +1279,44 @@
 
     // Current node being viewed (for edit/delete)
     let currentNodeId = null;
+
+    // Context menu actions
+    function contextEdit() {
+      if (!currentNodeId) return;
+      editCurrentNode();
+    }
+
+    function contextLink() {
+      if (!currentNodeId) return;
+      showAddEdgeModal();
+    }
+
+    async function contextComplete() {
+      if (!currentNodeId) return;
+      
+      try {
+        const res = await fetch('/api/node', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: currentNodeId, status: 'complete' }),
+        });
+
+        if (!res.ok) {
+          const result = await res.json();
+          alert('Error: ' + (result.error || 'Unknown error'));
+          return;
+        }
+
+        loadGraph();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function contextDelete() {
+      if (!currentNodeId) return;
+      deleteCurrentNode();
+    }
 
     // Modal functions
     function showCreateModal() {
