@@ -944,6 +944,19 @@
       }
     });
 
+    // Debounce helper
+    function debounce(fn, ms) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    // Auto-apply search filter on typing
+    const debouncedSearch = debounce(() => loadGraph(), 300);
+    document.getElementById('filter-search').addEventListener('input', debouncedSearch);
+
     // Initialize
     initCytoscape();
     loadTypes();
