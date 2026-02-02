@@ -782,6 +782,12 @@
         <button class="btn btn-secondary" id="undo-btn" onclick="history.undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
         <button class="btn btn-secondary" id="redo-btn" onclick="history.redo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
       </div>
+      <div id="bulk-actions" style="margin-top: 8px; display: none;">
+        <span id="selection-count" style="font-size: 12px; color: #888;">0 selected</span>
+        <button class="btn btn-secondary" onclick="bulkComplete()">✓ Complete</button>
+        <button class="btn btn-danger" onclick="bulkDelete()">🗑️ Delete</button>
+        <button class="btn btn-secondary" onclick="clearSelection()">Clear</button>
+      </div>
 
       <div class="legend">
         <h2>Node Types</h2>
@@ -1113,6 +1119,15 @@
             selector: 'edge.implements',
             style: { 'line-color': '#4ecdc4', 'target-arrow-color': '#4ecdc4' }
           },
+          // Multi-select
+          {
+            selector: 'node.selected-multi',
+            style: {
+              'border-width': 4,
+              'border-color': '#ffd700',
+              'border-style': 'double',
+            }
+          },
           // Hover states
           {
             selector: '.dimmed',
@@ -1137,10 +1152,21 @@
         },
       });
 
-      // Click handler
+      // Click handler (with multi-select)
       cy.on('tap', 'node', (evt) => {
-        const nodeId = evt.target.id();
-        showNodeDetail(nodeId);
+        const node = evt.target;
+        const nodeId = node.id();
+        
+        if (evt.originalEvent.shiftKey) {
+          // Multi-select with shift
+          node.toggleClass('selected-multi');
+          updateSelectionCount();
+        } else {
+          // Single select
+          cy.nodes().removeClass('selected-multi');
+          showNodeDetail(nodeId);
+          updateSelectionCount();
+        }
       });
 
       // Double-click to edit
@@ -1676,6 +1702,68 @@
     function contextDelete() {
       if (!currentNodeId) return;
       deleteCurrentNode();
+    }
+
+    // Multi-select and bulk operations
+    function updateSelectionCount() {
+      const selected = cy.nodes('.selected-multi');
+      const count = selected.length;
+      const bulkActions = document.getElementById('bulk-actions');
+      const countSpan = document.getElementById('selection-count');
+      
+      if (count > 0) {
+        bulkActions.style.display = 'block';
+        countSpan.textContent = `${count} selected`;
+      } else {
+        bulkActions.style.display = 'none';
+      }
+    }
+
+    function clearSelection() {
+      cy.nodes().removeClass('selected-multi');
+      updateSelectionCount();
+    }
+
+    async function bulkComplete() {
+      const selected = cy.nodes('.selected-multi');
+      if (selected.length === 0) return;
+      
+      if (!confirm(`Mark ${selected.length} nodes as complete?`)) return;
+
+      for (const node of selected) {
+        try {
+          await fetch('/api/node', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: node.id(), status: 'complete' }),
+          });
+        } catch (err) {
+          console.error('Failed to update:', node.id(), err);
+        }
+      }
+
+      clearSelection();
+      loadGraph();
+    }
+
+    async function bulkDelete() {
+      const selected = cy.nodes('.selected-multi');
+      if (selected.length === 0) return;
+      
+      if (!confirm(`Delete ${selected.length} nodes? This cannot be undone.`)) return;
+
+      for (const node of selected) {
+        try {
+          await fetch(`/api/node?id=${encodeURIComponent(node.id())}`, {
+            method: 'DELETE',
+          });
+        } catch (err) {
+          console.error('Failed to delete:', node.id(), err);
+        }
+      }
+
+      clearSelection();
+      loadGraph();
     }
 
     // Modal functions
