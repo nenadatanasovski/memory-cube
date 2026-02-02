@@ -516,6 +516,20 @@
       to { transform: translateX(100%); opacity: 0; }
     }
 
+    /* Fullscreen mode */
+    .fullscreen .sidebar,
+    .fullscreen .detail-panel {
+      display: none !important;
+    }
+
+    .fullscreen .graph-container {
+      width: 100vw;
+    }
+
+    .fullscreen .minimap {
+      right: 20px;
+    }
+
     /* Mini-map */
     .minimap {
       position: absolute;
@@ -925,6 +939,7 @@
         <button class="zoom-btn" onclick="zoomIn()" title="Zoom In (+)">+</button>
         <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out (-)">−</button>
         <button class="zoom-btn" onclick="fitGraph()" title="Fit to View (0)">⊡</button>
+        <button class="zoom-btn" onclick="toggleFullscreen()" title="Fullscreen (f)" id="fullscreen-btn">⛶</button>
       </div>
 
       <!-- Toast notifications -->
@@ -1731,6 +1746,22 @@
       cy.fit(cy.elements(), 50);
     }
 
+    function toggleFullscreen() {
+      document.querySelector('.container').classList.toggle('fullscreen');
+      const btn = document.getElementById('fullscreen-btn');
+      const isFullscreen = document.querySelector('.container').classList.contains('fullscreen');
+      btn.textContent = isFullscreen ? '⊞' : '⛶';
+      btn.title = isFullscreen ? 'Exit Fullscreen (f)' : 'Fullscreen (f)';
+      
+      // Resize cytoscape after transition
+      setTimeout(() => {
+        if (cy) {
+          cy.resize();
+          cy.fit(50);
+        }
+      }, 100);
+    }
+
     // Toggle shortcuts help
     function toggleHelp() {
       document.getElementById('shortcuts-help').classList.toggle('visible');
@@ -1808,6 +1839,12 @@
           if (!isInputFocused() && currentNodeId) {
             e.preventDefault();
             editCurrentNode();
+          }
+          break;
+        case 'f':
+          if (!isInputFocused()) {
+            e.preventDefault();
+            toggleFullscreen();
           }
           break;
       }
