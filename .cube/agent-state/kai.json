@@ -1,0 +1,13 @@
+{
+  "id": "kai",
+  "status": "idle",
+  "claimedTasks": [],
+  "stats": {
+    "tasksCompleted": 0,
+    "tasksFailed": 0,
+    "avgCompletionTimeMs": 0,
+    "lastActiveAt": null
+  },
+  "lastHeartbeat": null,
+  "heartbeatIntervalMs": 60000
+}

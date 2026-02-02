@@ -87,3 +87,34 @@ export type {
   TriggerContext,
   ActionExecutor,
 } from './events/index.js';
+
+// Agents
+export {
+  AgentRegistry,
+  WorkQueue,
+  Orchestrator,
+  createHumanAgent,
+  createCodeAgent,
+  createDocAgent,
+  createResearchAgent,
+} from './agents/index.js';
+
+export type {
+  AgentRole,
+  AgentStatus,
+  AgentCapabilities,
+  AgentConfig,
+  AgentState,
+  Agent,
+  WorkItem,
+  WorkQueue as WorkQueueType,
+  ClaimRequest,
+  ClaimResult,
+  ReleaseRequest,
+  TransferRequest,
+  DispatchOptions,
+  DispatchResult,
+  AgentEventType,
+  AgentEvent,
+  OrchestratorOptions,
+} from './agents/index.js';

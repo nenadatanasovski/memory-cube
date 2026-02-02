@@ -1,0 +1,45 @@
+{
+  "agents": [
+    {
+      "id": "kai",
+      "name": "Kai",
+      "role": "human-agent",
+      "description": "Primary human agent",
+      "capabilities": {
+        "nodeTypes": [
+          "task"
+        ],
+        "edgeTypes": [
+          "implements",
+          "blocks",
+          "depends-on"
+        ],
+        "tags": [],
+        "maxConcurrent": 10,
+        "canCreate": true,
+        "canDelete": false,
+        "priorityBoost": 0
+      }
+    },
+    {
+      "id": "code-agent",
+      "name": "Code Agent",
+      "role": "code-agent",
+      "capabilities": {
+        "nodeTypes": [
+          "task"
+        ],
+        "edgeTypes": [
+          "implements",
+          "blocks",
+          "depends-on"
+        ],
+        "tags": [],
+        "maxConcurrent": 3,
+        "canCreate": true,
+        "canDelete": false,
+        "priorityBoost": 0
+      }
+    }
+  ]
+}

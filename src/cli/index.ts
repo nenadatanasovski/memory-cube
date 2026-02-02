@@ -617,5 +617,309 @@ program
     }
   });
 
+// ============================================================================
+// Agents Command
+// ============================================================================
+
+program
+  .command('agents')
+  .description('List registered agents')
+  .option('--role <role>', 'Filter by role')
+  .option('--status <status>', 'Filter by status')
+  .action(async (options) => {
+    try {
+      const cube = new Cube(process.cwd(), { useAgents: true });
+      await cube.init();
+      
+      const orchestrator = cube.getOrchestrator();
+      if (!orchestrator) {
+        console.log('Agent system not enabled.');
+        return;
+      }
+
+      const agents = orchestrator.listAgents({
+        role: options.role,
+        status: options.status,
+      });
+
+      if (agents.length === 0) {
+        console.log('\nNo agents registered.\n');
+        return;
+      }
+
+      console.log(`\n🤖 Registered Agents (${agents.length}):\n`);
+      
+      for (const agent of agents) {
+        const statusIcon = {
+          idle: '🟢',
+          working: '🔵',
+          blocked: '🟡',
+          offline: '⚫',
+        }[agent.state.status] || '⚪';
+
+        console.log(`  ${statusIcon} ${agent.id}`);
+        console.log(`      Name: ${agent.name}`);
+        console.log(`      Role: ${agent.role}`);
+        console.log(`      Status: ${agent.state.status}`);
+        console.log(`      Claimed: ${agent.state.claimedTasks.length}/${agent.capabilities.maxConcurrent}`);
+        console.log(`      Completed: ${agent.state.stats.tasksCompleted}`);
+        if (agent.state.lastHeartbeat) {
+          console.log(`      Last heartbeat: ${agent.state.lastHeartbeat}`);
+        }
+        console.log();
+      }
+
+      await cube.shutdown();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Agent Register Command
+// ============================================================================
+
+program
+  .command('agent-register <id> <name>')
+  .description('Register a new agent')
+  .option('-r, --role <role>', 'Agent role', 'custom')
+  .option('-d, --description <desc>', 'Agent description')
+  .option('-c, --concurrent <n>', 'Max concurrent tasks', '1')
+  .option('--can-create', 'Allow creating nodes')
+  .option('--can-delete', 'Allow deleting nodes')
+  .action(async (id: string, name: string, options) => {
+    try {
+      const cube = new Cube(process.cwd(), { useAgents: true });
+      await cube.init();
+      
+      const orchestrator = cube.getOrchestrator();
+      if (!orchestrator) {
+        console.log('Agent system not enabled.');
+        return;
+      }
+
+      const agent = orchestrator.registerAgent({
+        id,
+        name,
+        role: options.role,
+        description: options.description,
+        capabilities: {
+          nodeTypes: ['task'],
+          edgeTypes: ['implements', 'blocks', 'depends-on'],
+          tags: [],
+          maxConcurrent: parseInt(options.concurrent, 10),
+          canCreate: options.canCreate || false,
+          canDelete: options.canDelete || false,
+          priorityBoost: 0,
+        },
+      });
+
+      console.log(`✓ Registered agent: ${agent.id}`);
+      
+      await cube.shutdown();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Work Queue Command
+// ============================================================================
+
+program
+  .command('queue')
+  .description('Show work queue status')
+  .option('--agent <id>', 'Filter by agent')
+  .action(async (options) => {
+    try {
+      const cube = new Cube(process.cwd(), { useAgents: true });
+      await cube.init();
+      
+      const orchestrator = cube.getOrchestrator();
+      if (!orchestrator) {
+        console.log('Agent system not enabled.');
+        return;
+      }
+
+      const state = orchestrator.queueState();
+      
+      console.log('\n📋 Work Queue\n');
+      console.log(`  Queued: ${state.stats.totalQueued}`);
+      console.log(`  Claimed: ${state.stats.totalClaimed}`);
+      console.log(`  Completed: ${state.stats.totalCompleted}`);
+      console.log(`  Failed: ${state.stats.totalFailed}`);
+      console.log(`  Avg wait: ${(state.stats.avgWaitTimeMs / 1000).toFixed(1)}s`);
+
+      const queued = orchestrator.getQueued();
+      if (queued.length > 0) {
+        console.log('\n  Queued items:');
+        for (const item of queued.slice(0, 10)) {
+          console.log(`    [${item.priority}] ${item.taskId}`);
+        }
+        if (queued.length > 10) {
+          console.log(`    ... and ${queued.length - 10} more`);
+        }
+      }
+
+      const claimed = orchestrator.getClaimed(options.agent);
+      if (claimed.length > 0) {
+        console.log('\n  Claimed items:');
+        for (const item of claimed) {
+          console.log(`    ${item.taskId} → ${item.claimedBy}`);
+        }
+      }
+
+      console.log();
+      await cube.shutdown();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Claim Command
+// ============================================================================
+
+program
+  .command('claim <agent-id> <task-id>')
+  .description('Claim a task for an agent')
+  .action(async (agentId: string, taskId: string) => {
+    try {
+      const cube = new Cube(process.cwd(), { useAgents: true });
+      await cube.init();
+      
+      const orchestrator = cube.getOrchestrator();
+      if (!orchestrator) {
+        console.log('Agent system not enabled.');
+        return;
+      }
+
+      // Enqueue if not already
+      orchestrator.enqueue(taskId);
+
+      const result = orchestrator.claim({ agentId, taskId });
+
+      if (result.success) {
+        console.log(`✓ Claimed: ${taskId} → ${agentId}`);
+      } else {
+        console.error('Error:', result.error);
+        process.exit(1);
+      }
+
+      await cube.shutdown();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Release Command
+// ============================================================================
+
+program
+  .command('release <agent-id> <task-id>')
+  .description('Release a claimed task')
+  .option('-c, --complete', 'Mark as completed')
+  .option('-e, --error <message>', 'Mark as failed with error')
+  .action(async (agentId: string, taskId: string, options) => {
+    try {
+      const cube = new Cube(process.cwd(), { useAgents: true });
+      await cube.init();
+      
+      const orchestrator = cube.getOrchestrator();
+      if (!orchestrator) {
+        console.log('Agent system not enabled.');
+        return;
+      }
+
+      const reason = options.complete ? 'completed' : options.error ? 'error' : 'reassign';
+      const newStatus = options.complete ? 'complete' : options.error ? 'blocked' : 'pending';
+
+      const result = orchestrator.release({
+        agentId,
+        taskId,
+        reason,
+        newStatus,
+        error: options.error,
+      });
+
+      if (result) {
+        console.log(`✓ Released: ${taskId} (${reason})`);
+      } else {
+        console.error('Failed to release task');
+        process.exit(1);
+      }
+
+      await cube.shutdown();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Dispatch Command
+// ============================================================================
+
+program
+  .command('dispatch')
+  .description('Dispatch pending tasks to available agents')
+  .option('--dry-run', 'Show what would be dispatched without doing it')
+  .option('--max <n>', 'Maximum tasks to dispatch', '10')
+  .action(async (options) => {
+    try {
+      const cube = new Cube(process.cwd(), { useAgents: true });
+      await cube.init();
+      
+      const orchestrator = cube.getOrchestrator();
+      if (!orchestrator) {
+        console.log('Agent system not enabled.');
+        return;
+      }
+
+      const result = orchestrator.dispatch({
+        dryRun: options.dryRun,
+        maxTasks: parseInt(options.max, 10),
+      });
+
+      if (options.dryRun) {
+        console.log('\n🔍 Dry run - would dispatch:\n');
+      } else {
+        console.log('\n🚀 Dispatch results:\n');
+      }
+
+      if (result.dispatched.length > 0) {
+        console.log('  Dispatched:');
+        for (const { taskId, agentId } of result.dispatched) {
+          console.log(`    ${taskId} → ${agentId}`);
+        }
+      }
+
+      if (result.skipped.length > 0) {
+        console.log('\n  Skipped:');
+        for (const { taskId, reason } of result.skipped) {
+          console.log(`    ${taskId}: ${reason}`);
+        }
+      }
+
+      if (result.errors.length > 0) {
+        console.log('\n  Errors:');
+        for (const error of result.errors) {
+          console.log(`    ${error}`);
+        }
+      }
+
+      console.log();
+      await cube.shutdown();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // Parse and execute
 program.parse();

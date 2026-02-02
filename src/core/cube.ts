@@ -37,11 +37,14 @@ import {
   type EdgeDeletedEvent,
   type CubeSystemEvent,
 } from '../events/index.js';
+import { Orchestrator, type OrchestratorOptions } from '../agents/index.js';
 
 export interface CubeOptions {
   useIndex?: boolean;
   useEvents?: boolean;
   useFileWatcher?: boolean;
+  useAgents?: boolean;
+  agentOptions?: OrchestratorOptions;
 }
 
 export class Cube {
@@ -58,6 +61,11 @@ export class Cube {
   private fileWatcher: FileWatcher | null = null;
   private useEvents: boolean = true;
   private useFileWatcher: boolean = false;
+  
+  // Agent system
+  private orchestrator: Orchestrator | null = null;
+  private useAgents: boolean = false;
+  private agentOptions?: OrchestratorOptions;
 
   constructor(basePath: string = process.cwd(), options?: CubeOptions) {
     this.basePath = basePath;
@@ -65,6 +73,8 @@ export class Cube {
     this.useIndex = options?.useIndex ?? true;
     this.useEvents = options?.useEvents ?? true;
     this.useFileWatcher = options?.useFileWatcher ?? false;
+    this.useAgents = options?.useAgents ?? false;
+    this.agentOptions = options?.agentOptions;
   }
 
   /**
@@ -114,8 +124,19 @@ export class Cube {
           useIndex: this.useIndex,
           useEvents: this.useEvents,
           useFileWatcher: this.useFileWatcher,
+          useAgents: this.useAgents,
         },
       } as CubeSystemEvent);
+    }
+    
+    // Initialize agent system
+    if (this.useAgents) {
+      this.orchestrator = new Orchestrator(this.basePath, this.agentOptions);
+      this.orchestrator.setCube(this);
+      if (this.eventBus) {
+        this.orchestrator.setEventBus(this.eventBus);
+      }
+      this.orchestrator.start();
     }
     
     this.initialized = true;
@@ -125,6 +146,9 @@ export class Cube {
    * Shutdown the cube (stop watchers, flush logs)
    */
   async shutdown(): Promise<void> {
+    if (this.orchestrator) {
+      this.orchestrator.stop();
+    }
     if (this.fileWatcher) {
       this.fileWatcher.stop();
     }
@@ -769,6 +793,17 @@ export class Cube {
   recentEvents(count: number = 100): any[] {
     if (!this.eventLog) return [];
     return this.eventLog.readRecent(count);
+  }
+
+  // ============================================================================
+  // Agent System
+  // ============================================================================
+
+  /**
+   * Get the orchestrator (for agent management and work dispatch)
+   */
+  getOrchestrator(): Orchestrator | null {
+    return this.orchestrator;
   }
 }
 
