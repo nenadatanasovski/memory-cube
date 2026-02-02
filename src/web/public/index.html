@@ -977,6 +977,12 @@
         showNodeDetail(nodeId);
       });
 
+      // Double-click to edit
+      cy.on('dbltap', 'node', (evt) => {
+        currentNodeId = evt.target.id();
+        editCurrentNode();
+      });
+
       cy.on('tap', (evt) => {
         if (evt.target === cy) {
           closeDetail();
