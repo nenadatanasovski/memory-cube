@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "name": "memory-cube",
+  "rootPath": "/home/ned-atanasovski/.openclaw/workspace/memory_cube/.cube",
+  "index": {
+    "rebuildOnStart": false,
+    "ftsEnabled": true
+  },
+  "events": {
+    "enabled": true,
+    "maxLogSize": 10000
+  },
+  "agents": {
+    "defaultAgent": "default",
+    "autoAssign": false
+  }
+}

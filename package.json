@@ -1,0 +1,52 @@
+{
+  "name": "memory-cube",
+  "version": "0.1.0",
+  "description": "A deterministic parallel orchestration system with graph-based knowledge synthesis for multi-agent workflows",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cube": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run lint && npm run test",
+    "clean": "rm -rf dist/",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "knowledge-graph",
+    "multi-agent",
+    "orchestration",
+    "memory",
+    "ai-agents",
+    "documentation"
+  ],
+  "author": "Kai & Ned",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "chalk": "^5.0.0",
+    "commander": "^12.0.0",
+    "gray-matter": "^4.0.0",
+    "yaml": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
