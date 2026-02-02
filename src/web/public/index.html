@@ -1708,8 +1708,70 @@
             history.redo();
           }
           break;
+        case 'ArrowDown':
+        case 'ArrowUp':
+        case 'ArrowLeft':
+        case 'ArrowRight':
+        case 'j':
+        case 'k':
+          if (!isInputFocused()) {
+            e.preventDefault();
+            navigateNodes(e.key);
+          }
+          break;
+        case 'Enter':
+          if (!isInputFocused() && currentNodeId) {
+            e.preventDefault();
+            editCurrentNode();
+          }
+          break;
       }
     });
+
+    // Check if an input element is focused
+    function isInputFocused() {
+      const el = document.activeElement;
+      return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
+    }
+
+    // Navigate between nodes with arrow keys
+    function navigateNodes(key) {
+      const nodes = cy.nodes().sort((a, b) => {
+        const posA = a.position();
+        const posB = b.position();
+        return posA.y - posB.y || posA.x - posB.x;
+      });
+      
+      if (nodes.length === 0) return;
+      
+      let currentIndex = -1;
+      if (currentNodeId) {
+        currentIndex = nodes.findIndex(n => n.id() === currentNodeId);
+      }
+      
+      let nextIndex;
+      switch (key) {
+        case 'ArrowDown':
+        case 'j':
+          nextIndex = currentIndex < nodes.length - 1 ? currentIndex + 1 : 0;
+          break;
+        case 'ArrowUp':
+        case 'k':
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : nodes.length - 1;
+          break;
+        case 'ArrowRight':
+          nextIndex = currentIndex < nodes.length - 1 ? currentIndex + 1 : 0;
+          break;
+        case 'ArrowLeft':
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : nodes.length - 1;
+          break;
+        default:
+          return;
+      }
+      
+      const nextNode = nodes[nextIndex];
+      showNodeDetail(nextNode.id());
+      cy.animate({ center: { eles: nextNode }, duration: 200 });
 
     // Current node being viewed (for edit/delete)
     let currentNodeId = null;
