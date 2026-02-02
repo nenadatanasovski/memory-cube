@@ -143,6 +143,16 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - Commit: `3da4532`
 - **Next:** Continue iterating — mini-map? more polish?
 
+### 2026-02-02 22:30 AEDT
+- ✅ Edge creation/deletion from UI
+- ✅ Auto-apply filters (type chips, status, validity)
+- Added "Link" button in detail panel
+- Edge modal with relationship type selector
+- Backend: POST/DELETE /api/edge endpoints
+- Tested: created edge via API ✓
+- Commit: `d5b5615`
+- **Total session commits:** 10 (since Phase 6 was "complete")
+
 ---
 
 ## Commands

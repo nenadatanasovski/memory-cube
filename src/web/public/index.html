@@ -276,6 +276,20 @@
       margin: 0 8px;
     }
 
+    .edge-delete {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .edge-delete:hover {
+      color: #e94560;
+    }
+
     .detail-body {
       margin-top: 16px;
       padding: 12px;
@@ -1044,6 +1058,7 @@
                 <span>this</span>
                 <span class="edge-type">→ ${e.type} →</span>
                 <span>${e.to.split('/').pop()}</span>
+                <button class="edge-delete" onclick="deleteEdge('${node.id}', '${e.type}', '${e.to}')" title="Remove">×</button>
               </div>
             `).join('')}
           `;
@@ -1317,6 +1332,29 @@
 
     function closeEdgeModal() {
       document.getElementById('edge-modal-overlay').classList.remove('active');
+    }
+
+    async function deleteEdge(from, type, to) {
+      if (!confirm(`Remove "${type}" relationship?`)) return;
+
+      try {
+        const res = await fetch('/api/edge', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, type, to }),
+        });
+
+        if (!res.ok) {
+          const result = await res.json();
+          alert('Error: ' + (result.error || 'Unknown error'));
+          return;
+        }
+
+        loadGraph();
+        showNodeDetail(currentNodeId);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
     }
 
     async function submitEdgeForm(e) {
