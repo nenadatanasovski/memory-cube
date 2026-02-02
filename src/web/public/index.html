@@ -782,6 +782,26 @@
       margin-bottom: 12px;
     }
 
+    .recent-nodes {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .recent-item {
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recent-item:hover {
+      background: var(--bg-tertiary);
+    }
+
     .btn-small {
       padding: 6px 10px;
       font-size: 14px;
@@ -893,6 +913,11 @@
       <button class="btn btn-secondary" onclick="exportPNG()">🖼️ Export PNG</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
       <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📥 Import JSON</button>
+
+      <h2>Recent</h2>
+      <div id="recent-nodes" class="recent-nodes">
+        <!-- Populated by JS -->
+      </div>
 
       <h2>Quick Add</h2>
       <div class="quick-add">
@@ -1626,6 +1651,7 @@
 
         document.getElementById('detail-panel').classList.add('active');
         updateStarButton();
+        addToRecent(nodeId, node.title);
       } catch (err) {
         console.error('Failed to load node:', err);
       }
@@ -1928,6 +1954,38 @@
 
     // Starred nodes (stored in localStorage)
     let starredNodes = new Set(JSON.parse(localStorage.getItem('starredNodes') || '[]'));
+
+    // Recent nodes (stored in localStorage)
+    let recentNodes = JSON.parse(localStorage.getItem('recentNodes') || '[]');
+    const MAX_RECENT = 10;
+
+    function addToRecent(nodeId, title) {
+      // Remove if already exists
+      recentNodes = recentNodes.filter(n => n.id !== nodeId);
+      // Add to front
+      recentNodes.unshift({ id: nodeId, title, time: Date.now() });
+      // Trim to max
+      recentNodes = recentNodes.slice(0, MAX_RECENT);
+      // Save
+      localStorage.setItem('recentNodes', JSON.stringify(recentNodes));
+      updateRecentList();
+    }
+
+    function updateRecentList() {
+      const container = document.getElementById('recent-nodes');
+      if (!container) return;
+      
+      if (recentNodes.length === 0) {
+        container.innerHTML = '<span style="color:#666;font-size:12px">No recent nodes</span>';
+        return;
+      }
+      
+      container.innerHTML = recentNodes.map(n => `
+        <div class="recent-item" onclick="showNodeDetail('${n.id}')" title="${n.id}">
+          ${n.title.substring(0, 25)}${n.title.length > 25 ? '...' : ''}
+        </div>
+      `).join('');
+    }
 
     function toggleStar() {
       if (!currentNodeId) return;
