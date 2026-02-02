@@ -794,6 +794,46 @@
       background: var(--bg-tertiary);
     }
 
+    /* Similar results */
+    .similar-results {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    .similar-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      gap: 8px;
+    }
+
+    .similar-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .similar-type {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .similar-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .similar-score {
+      font-size: 12px;
+      color: #888;
+    }
+
     .btn-small {
       padding: 6px 10px;
       font-size: 14px;

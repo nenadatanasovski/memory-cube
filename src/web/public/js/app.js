@@ -881,6 +881,58 @@
       });
     }
 
+    // Find similar nodes
+    async function findSimilar() {
+      if (!currentNodeId) return;
+      
+      try {
+        const res = await fetch(`/api/similar?id=${encodeURIComponent(currentNodeId)}&limit=5`);
+        const data = await res.json();
+        
+        if (data.results && data.results.length > 0) {
+          showSimilarResults(data.results);
+        } else {
+          toast('No similar nodes found', 'info');
+        }
+      } catch (err) {
+        toast('Error finding similar: ' + err.message, 'error');
+      }
+    }
+
+    function showSimilarResults(results) {
+      // Create modal with results
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay active';
+      modal.id = 'similar-modal';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+          <h2>🔍 Similar Nodes</h2>
+          <div class="similar-results">
+            ${results.map(r => `
+              <div class="similar-item" onclick="closeSimilarModal(); showNodeDetail('${r.id}')">
+                <span class="similar-type type-${r.type}">${r.type}</span>
+                <span class="similar-title">${escapeHtml(r.title)}</span>
+                <span class="similar-score">${Math.round(r.score * 100)}%</span>
+              </div>
+            `).join('')}
+          </div>
+          <button class="btn" onclick="closeSimilarModal()">Close</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function closeSimilarModal() {
+      const modal = document.getElementById('similar-modal');
+      if (modal) modal.remove();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
     // Focus mode - show only the selected node and its neighbors
     let focusMode = false;
     let hiddenElements = [];
