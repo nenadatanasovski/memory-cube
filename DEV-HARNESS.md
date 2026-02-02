@@ -17,7 +17,7 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - [x] Stats dashboard
 - [x] Add/edit/delete nodes from UI
 - [x] Export graph (PNG, JSON)
-- [ ] Undo/redo support
+- [x] Undo/redo support (Ctrl+Z/Ctrl+Y)
 
 ### UX Requirements
 - [x] Dark theme
@@ -25,8 +25,8 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - [x] Keyboard shortcuts (zoom, pan, search focus)
 - [x] Multi-select filter (chip-based)
 - [x] Zoom controls visible in UI
-- [ ] Mini-map for large graphs
-- [ ] Loading states with skeletons
+- [x] Mini-map for large graphs
+- [x] Loading states with skeletons
 - [x] Empty state when no nodes match filter
 
 ### Visual Polish
@@ -43,8 +43,8 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - [x] Debounced search (300ms)
 
 ### Data Quality
-- [ ] Architecture doc has actual content
-- [ ] Example nodes for each type
+- [x] Architecture doc has actual content (comprehensive!)
+- [x] Example nodes for each type (all 12 types represented)
 
 ---
 
@@ -65,8 +65,8 @@ This document is my continuous development loop. I use it to plan, build, test, 
 8. ~~No edge labels~~ ✅ FIXED (labels on hover)
 
 ### P3 - Low
-9. No mini-map
-10. No undo/redo
+9. ~~No mini-map~~ ✅ FIXED
+10. ~~No undo/redo~~ ✅ FIXED (Ctrl+Z/Ctrl+Y)
 11. No dark/light mode toggle
 
 ---
@@ -172,6 +172,16 @@ This document is my continuous development loop. I use it to plan, build, test, 
   - Label-to-type mapping
 - Requires: `gh auth login`
 - Commit: `327961d`
+
+### 2026-02-02 22:57+ AEDT — Continuous Iteration Mode 🔄
+Ned said "this was meant to run all night" — activating autonomous mode.
+
+**22:57** ✅ Mini-map with viewport indicator (f50cac2)
+**22:59** ✅ Undo/redo system with history tracking (87f7caf)
+**22:59** ✅ Loading skeleton animations (119927d)
+**23:01** ✅ Example nodes for all 12 types + architecture doc (5e828f1)
+
+**Status:** Most features complete. 18 nodes in cube. Continuing...
 
 ---
 
