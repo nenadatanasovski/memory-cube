@@ -16,7 +16,7 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - [x] Search functionality
 - [x] Stats dashboard
 - [ ] Add/edit/delete nodes from UI
-- [ ] Export graph (PNG, JSON)
+- [x] Export graph (PNG, JSON)
 - [ ] Undo/redo support
 
 ### UX Requirements
@@ -60,9 +60,9 @@ This document is my continuous development loop. I use it to plan, build, test, 
 
 ### P2 - Medium
 5. No CRUD operations from UI
-6. No export functionality
+6. ~~No export functionality~~ ✅ FIXED (JSON + PNG export)
 7. Architecture doc is empty
-8. No edge labels
+8. ~~No edge labels~~ ✅ FIXED (labels on hover)
 
 ### P3 - Low
 9. No mini-map
