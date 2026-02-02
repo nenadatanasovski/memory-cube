@@ -772,9 +772,11 @@
         <option value="concentric">Concentric</option>
       </select>
       
-      <h2>Export</h2>
-      <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
-      <button class="btn btn-secondary" onclick="exportPNG()">🖼️ PNG</button>
+      <h2>Import/Export</h2>
+      <button class="btn btn-secondary" onclick="exportJSON()">📤 Export JSON</button>
+      <button class="btn btn-secondary" onclick="exportPNG()">🖼️ Export PNG</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📥 Import JSON</button>
 
       <h2>Actions</h2>
       <button class="btn" onclick="showCreateModal()">+ New Node</button>
@@ -2009,6 +2011,56 @@
       a.download = `memory-cube-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    async function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (!data.nodes || !Array.isArray(data.nodes)) {
+          alert('Invalid format: expected { nodes: [...] }');
+          return;
+        }
+
+        let imported = 0, errors = 0;
+        
+        for (const node of data.nodes) {
+          try {
+            // Only import if it has required fields
+            if (node.type && node.title) {
+              await fetch('/api/node', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: node.type,
+                  title: node.title || node.label,
+                  content: node.content || '',
+                  status: node.status || 'pending',
+                  priority: node.priority || 'normal',
+                  tags: node.tags || [],
+                }),
+              });
+              imported++;
+            }
+          } catch (err) {
+            errors++;
+            console.error('Import error:', err);
+          }
+        }
+
+        alert(`Imported ${imported} nodes` + (errors > 0 ? `, ${errors} errors` : ''));
+        loadGraph();
+        
+      } catch (err) {
+        alert('Failed to parse JSON: ' + err.message);
+      }
+      
+      // Reset file input
+      event.target.value = '';
     }
 
     function exportPNG() {
