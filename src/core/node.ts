@@ -5,14 +5,11 @@
 import { createHash } from 'crypto';
 import type {
   Node,
-  NodeMeta,
   NodeType,
   NodeStatus,
   NodeValidity,
   Priority,
   Edge,
-  NodeAction,
-  NodeOrdering,
 } from './types.js';
 
 /**
@@ -310,6 +307,9 @@ export function markdownToNode(markdown: string, filePath: string): Node {
     createdAt: meta.created_at as string,
   }));
 
+  // Parse ordering object
+  const ordering = meta.ordering as Record<string, unknown> | undefined;
+  
   return {
     id: meta.id as string,
     type: meta.type as NodeType,
@@ -326,9 +326,9 @@ export function markdownToNode(markdown: string, filePath: string): Node {
     modifiedAt: meta.modified_at as string,
     dueAt: meta.due_at as string | null,
     ordering: {
-      supersededBy: meta.ordering?.superseded_by as string | null,
-      semanticHash: meta.ordering?.semantic_hash as string,
-      sourceFreshness: meta.ordering?.source_freshness as string,
+      supersededBy: (ordering?.superseded_by as string) ?? null,
+      semanticHash: (ordering?.semantic_hash as string) ?? '',
+      sourceFreshness: (ordering?.source_freshness as string) ?? new Date().toISOString().split('T')[0],
     },
     actions: Array.isArray(meta.actions) ? meta.actions : [],
     edges,

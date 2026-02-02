@@ -4,10 +4,10 @@
  * The central interface for interacting with the knowledge graph.
  */
 
+import { randomUUID } from 'crypto';
 import type {
   Node,
   NodeType,
-  NodeStatus,
   Edge,
   EdgeType,
   CreateNodeInput,
@@ -22,16 +22,49 @@ import type {
 import { createNode, updateNode, addEdge, removeEdge } from './node.js';
 import { FileStorage } from '../storage/file-storage.js';
 import { SqliteIndex } from '../storage/sqlite-index.js';
+import { 
+  EventBus, 
+  EventLog, 
+  TriggerManager, 
+  FileWatcher,
+  type CubeEvent,
+  type NodeCreatedEvent,
+  type NodeUpdatedEvent,
+  type NodeDeletedEvent,
+  type NodeStatusChangedEvent,
+  type NodeValidityChangedEvent,
+  type EdgeCreatedEvent,
+  type EdgeDeletedEvent,
+  type CubeSystemEvent,
+} from '../events/index.js';
+
+export interface CubeOptions {
+  useIndex?: boolean;
+  useEvents?: boolean;
+  useFileWatcher?: boolean;
+}
 
 export class Cube {
+  private basePath: string;
   private storage: FileStorage;
   private index: SqliteIndex | null = null;
   private initialized: boolean = false;
   private useIndex: boolean = true;
+  
+  // Event system
+  private eventBus: EventBus | null = null;
+  private eventLog: EventLog | null = null;
+  private triggerManager: TriggerManager | null = null;
+  private fileWatcher: FileWatcher | null = null;
+  private useEvents: boolean = true;
+  private useFileWatcher: boolean = false;
 
-  constructor(basePath: string = process.cwd(), options?: { useIndex?: boolean }) {
+  constructor(basePath: string = process.cwd(), options?: CubeOptions) {
+    this.basePath = basePath;
     this.storage = new FileStorage(basePath);
     this.useIndex = options?.useIndex ?? true;
+    this.useEvents = options?.useEvents ?? true;
+    this.useFileWatcher = options?.useFileWatcher ?? false;
   }
 
   /**
@@ -58,7 +91,56 @@ export class Cube {
       }
     }
     
+    // Initialize event system
+    if (this.useEvents) {
+      this.eventBus = new EventBus();
+      this.eventLog = new EventLog(this.basePath);
+      this.triggerManager = new TriggerManager(this.eventBus, this.eventLog);
+      this.triggerManager.setCube(this);
+      this.triggerManager.start();
+      
+      // Initialize file watcher if enabled
+      if (this.useFileWatcher) {
+        this.fileWatcher = new FileWatcher(this.basePath, this.eventBus);
+        this.fileWatcher.start();
+      }
+      
+      // Emit initialization event
+      this.emitEvent({
+        id: randomUUID(),
+        type: 'cube.initialized',
+        timestamp: new Date().toISOString(),
+        details: {
+          useIndex: this.useIndex,
+          useEvents: this.useEvents,
+          useFileWatcher: this.useFileWatcher,
+        },
+      } as CubeSystemEvent);
+    }
+    
     this.initialized = true;
+  }
+  
+  /**
+   * Shutdown the cube (stop watchers, flush logs)
+   */
+  async shutdown(): Promise<void> {
+    if (this.fileWatcher) {
+      this.fileWatcher.stop();
+    }
+    if (this.triggerManager) {
+      this.triggerManager.stop();
+    }
+    this.initialized = false;
+  }
+  
+  /**
+   * Emit an event (if event system is enabled)
+   */
+  private emitEvent(event: CubeEvent): void {
+    if (this.eventBus) {
+      this.eventBus.emitSync(event);
+    }
   }
 
   /**
@@ -138,6 +220,14 @@ export class Cube {
         this.index.indexNode(saved);
       }
       
+      // Emit event
+      this.emitEvent({
+        id: randomUUID(),
+        type: 'node.created',
+        timestamp: new Date().toISOString(),
+        node: saved,
+      } as NodeCreatedEvent);
+      
       return { success: true, data: saved };
     } catch (error) {
       return { 
@@ -179,6 +269,47 @@ export class Cube {
       this.index.indexNode(saved);
     }
     
+    // Determine what changed
+    const changedFields = Object.keys(updates).filter(key => {
+      const k = key as keyof UpdateNodeInput;
+      return updates[k] !== undefined && updates[k] !== existing[k as keyof Node];
+    });
+    
+    // Emit status change event if status changed
+    if (updates.status && updates.status !== existing.status) {
+      this.emitEvent({
+        id: randomUUID(),
+        type: 'node.status_changed',
+        timestamp: new Date().toISOString(),
+        nodeId: id,
+        previousStatus: existing.status,
+        newStatus: updates.status,
+      } as NodeStatusChangedEvent);
+    }
+    
+    // Emit validity change event if validity changed
+    if (updates.validity && updates.validity !== existing.validity) {
+      this.emitEvent({
+        id: randomUUID(),
+        type: 'node.validity_changed',
+        timestamp: new Date().toISOString(),
+        nodeId: id,
+        previousValidity: existing.validity,
+        newValidity: updates.validity,
+      } as NodeValidityChangedEvent);
+    }
+    
+    // Emit general update event
+    this.emitEvent({
+      id: randomUUID(),
+      type: 'node.updated',
+      timestamp: new Date().toISOString(),
+      nodeId: id,
+      before: existing,
+      after: saved,
+      changedFields,
+    } as NodeUpdatedEvent);
+    
     return { success: true, data: saved };
   }
 
@@ -188,6 +319,9 @@ export class Cube {
   delete(id: string): OperationResult<void> {
     this.ensureInitialized();
 
+    // Get node before deletion for event
+    const node = this.storage.loadNode(id);
+    
     const deleted = this.storage.deleteNode(id);
     if (!deleted) {
       return { success: false, error: `Node not found: ${id}` };
@@ -196,6 +330,17 @@ export class Cube {
     // Remove from index
     if (this.index) {
       this.index.removeNode(id);
+    }
+    
+    // Emit event
+    if (node) {
+      this.emitEvent({
+        id: randomUUID(),
+        type: 'node.deleted',
+        timestamp: new Date().toISOString(),
+        nodeId: id,
+        node: node,
+      } as NodeDeletedEvent);
     }
     
     return { success: true };
@@ -243,6 +388,19 @@ export class Cube {
       this.index.indexNode(saved);
     }
     
+    // Find the new edge and emit event
+    const newEdge = saved.edges.find(e => e.type === type && e.to === toId);
+    if (newEdge) {
+      this.emitEvent({
+        id: randomUUID(),
+        type: 'edge.created',
+        timestamp: new Date().toISOString(),
+        edge: newEdge,
+        fromNodeId: fromId,
+        toNodeId: toId,
+      } as EdgeCreatedEvent);
+    }
+    
     return { success: true, data: saved };
   }
 
@@ -270,6 +428,16 @@ export class Cube {
     if (this.index) {
       this.index.indexNode(saved);
     }
+    
+    // Emit event
+    this.emitEvent({
+      id: randomUUID(),
+      type: 'edge.deleted',
+      timestamp: new Date().toISOString(),
+      edge: edge,
+      fromNodeId: fromId,
+      toNodeId: toId,
+    } as EdgeDeletedEvent);
     
     return { success: true, data: saved };
   }
@@ -549,6 +717,58 @@ export class Cube {
   listByType(type: NodeType): Node[] {
     this.ensureInitialized();
     return this.storage.listNodesByType(type);
+  }
+
+  // ============================================================================
+  // Event System
+  // ============================================================================
+
+  /**
+   * Get the event bus (for subscribing to events)
+   */
+  getEventBus(): EventBus | null {
+    return this.eventBus;
+  }
+
+  /**
+   * Get the event log (for reading event history)
+   */
+  getEventLog(): EventLog | null {
+    return this.eventLog;
+  }
+
+  /**
+   * Get the trigger manager (for registering triggers)
+   */
+  getTriggerManager(): TriggerManager | null {
+    return this.triggerManager;
+  }
+
+  /**
+   * Subscribe to events
+   */
+  on<T extends CubeEvent = CubeEvent>(
+    eventType: string,
+    handler: (event: T) => void | Promise<void>
+  ): string | null {
+    if (!this.eventBus) return null;
+    return this.eventBus.on(eventType as any, handler as any);
+  }
+
+  /**
+   * Unsubscribe from events
+   */
+  off(subscriptionId: string): boolean {
+    if (!this.eventBus) return false;
+    return this.eventBus.off(subscriptionId);
+  }
+
+  /**
+   * Get recent events
+   */
+  recentEvents(count: number = 100): any[] {
+    if (!this.eventLog) return [];
+    return this.eventLog.readRecent(count);
   }
 }
 

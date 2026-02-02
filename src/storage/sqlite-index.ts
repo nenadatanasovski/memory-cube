@@ -7,7 +7,7 @@
 
 import Database from 'better-sqlite3';
 import { join } from 'path';
-import type { Node, NodeType, QueryFilter, QuerySort } from '../core/types.js';
+import type { Node, QueryFilter, QuerySort } from '../core/types.js';
 
 const SCHEMA = `
 -- Nodes table
@@ -70,7 +70,6 @@ CREATE INDEX IF NOT EXISTS idx_tags_tag ON node_tags(tag);
 export class SqliteIndex {
   private db: Database.Database;
   private insertNode: Database.Statement;
-  private updateNode: Database.Statement;
   private deleteNode: Database.Statement;
   private insertEdge: Database.Statement;
   private deleteEdgesForNode: Database.Statement;
@@ -96,14 +95,8 @@ export class SqliteIndex {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    this.updateNode = this.db.prepare(`
-      UPDATE nodes SET 
-        type = ?, status = ?, validity = ?, priority = ?, confidence = ?,
-        created_by = ?, assigned_to = ?, locked_by = ?, created_at = ?,
-        modified_at = ?, due_at = ?, title = ?, content_preview = ?,
-        semantic_hash = ?, file_path = ?, version = ?
-      WHERE id = ?
-    `);
+    // Note: We use DELETE + INSERT for updates instead of UPDATE
+    // to simplify handling of edges and tags
 
     this.deleteNode = this.db.prepare('DELETE FROM nodes WHERE id = ?');
 

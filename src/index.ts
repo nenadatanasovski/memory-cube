@@ -7,6 +7,7 @@
 
 // Core
 export { Cube, openCube } from './core/cube.js';
+export type { CubeOptions } from './core/cube.js';
 export {
   createNode,
   updateNode,
@@ -35,8 +36,6 @@ export type {
   QueryOptions,
   TraversalOptions,
   TraversalResult,
-  CubeEvent,
-  EventType,
   CubeConfig,
   CreateNodeInput,
   UpdateNodeInput,
@@ -46,3 +45,45 @@ export type {
 // Storage
 export { FileStorage } from './storage/file-storage.js';
 export { SqliteIndex } from './storage/sqlite-index.js';
+
+// Events
+export {
+  EventBus,
+  getDefaultEventBus,
+  resetDefaultEventBus,
+  EventLog,
+  TriggerManager,
+  FileWatcher,
+  createCodeChangesTrigger,
+  createTaskCompletionTrigger,
+  createBrainfartCaptureTrigger,
+} from './events/index.js';
+
+export type {
+  EventType,
+  CubeEvent,
+  BaseEvent,
+  NodeCreatedEvent,
+  NodeUpdatedEvent,
+  NodeDeletedEvent,
+  NodeStatusChangedEvent,
+  NodeValidityChangedEvent,
+  EdgeCreatedEvent,
+  EdgeDeletedEvent,
+  CodeFileChangedEvent,
+  AgentTaskEvent,
+  CubeSystemEvent,
+  TriggerFiredEvent,
+  TriggerErrorEvent,
+  Trigger,
+  TriggerCondition,
+  TriggerAction,
+  TriggerActionType,
+  EventHandler,
+  EventSubscription,
+  EventLogEntry,
+  EventLogOptions,
+  FileWatcherOptions,
+  TriggerContext,
+  ActionExecutor,
+} from './events/index.js';

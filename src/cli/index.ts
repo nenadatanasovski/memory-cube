@@ -8,7 +8,7 @@
 
 import { Command } from 'commander';
 import { Cube, openCube } from '../core/cube.js';
-import type { NodeType, Priority, NodeStatus, EdgeType } from '../core/types.js';
+import type { NodeType, Priority, EdgeType } from '../core/types.js';
 
 const program = new Command();
 
@@ -439,6 +439,178 @@ program
         }
       }
       console.log();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Events Command
+// ============================================================================
+
+program
+  .command('events')
+  .description('Show recent events')
+  .option('-n, --count <n>', 'Number of events to show', '20')
+  .option('--type <type>', 'Filter by event type')
+  .option('--node <id>', 'Filter by node ID')
+  .action(async (options) => {
+    try {
+      const cube = await openCube();
+      const eventLog = cube.getEventLog();
+      
+      if (!eventLog) {
+        console.log('Event system not enabled.');
+        return;
+      }
+
+      let entries;
+      if (options.node) {
+        entries = eventLog.readByNode(options.node, parseInt(options.count, 10));
+      } else if (options.type) {
+        entries = eventLog.readByType(options.type, parseInt(options.count, 10));
+      } else {
+        entries = eventLog.readRecent(parseInt(options.count, 10));
+      }
+
+      if (entries.length === 0) {
+        console.log('\nNo events found.\n');
+        return;
+      }
+
+      console.log(`\n📋 Recent Events (${entries.length}):\n`);
+      
+      for (const entry of entries) {
+        const event = entry.event;
+        const time = new Date(event.timestamp).toLocaleTimeString();
+        const triggers = entry.triggersActivated.length > 0 
+          ? ` → triggered: ${entry.triggersActivated.join(', ')}` 
+          : '';
+        
+        let details = '';
+        if ('nodeId' in event) details = ` (${(event as any).nodeId})`;
+        else if ('node' in event) details = ` (${(event as any).node?.id || 'unknown'})`;
+        
+        console.log(`  [${time}] ${event.type}${details}${triggers}`);
+      }
+      console.log();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Events Stats Command
+// ============================================================================
+
+program
+  .command('events-stats')
+  .description('Show event log statistics')
+  .action(async () => {
+    try {
+      const cube = await openCube();
+      const eventLog = cube.getEventLog();
+      
+      if (!eventLog) {
+        console.log('Event system not enabled.');
+        return;
+      }
+
+      const stats = eventLog.stats();
+      
+      console.log('\n📊 Event Log Stats\n');
+      console.log(`  Events: ${stats.eventCount}`);
+      console.log(`  File size: ${(stats.fileSizeBytes / 1024).toFixed(1)} KB`);
+      if (stats.oldestEvent) console.log(`  Oldest: ${stats.oldestEvent}`);
+      if (stats.newestEvent) console.log(`  Newest: ${stats.newestEvent}`);
+      console.log(`  Path: ${eventLog.getPath()}`);
+      console.log();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Triggers Command
+// ============================================================================
+
+program
+  .command('triggers')
+  .description('List registered triggers')
+  .action(async () => {
+    try {
+      const cube = await openCube();
+      const triggerManager = cube.getTriggerManager();
+      
+      if (!triggerManager) {
+        console.log('Event system not enabled.');
+        return;
+      }
+
+      const triggers = triggerManager.list();
+
+      if (triggers.length === 0) {
+        console.log('\nNo triggers registered.\n');
+        return;
+      }
+
+      console.log(`\n⚡ Registered Triggers (${triggers.length}):\n`);
+      
+      for (const trigger of triggers) {
+        const status = trigger.enabled ? '✓' : '✗';
+        const events = Array.isArray(trigger.event) ? trigger.event.join(', ') : trigger.event;
+        const actions = trigger.actions.map(a => a.type).join(', ');
+        
+        console.log(`  [${status}] ${trigger.id}`);
+        console.log(`      Name: ${trigger.name}`);
+        console.log(`      Events: ${events}`);
+        console.log(`      Actions: ${actions}`);
+        if (trigger.lastFiredAt) {
+          console.log(`      Last fired: ${trigger.lastFiredAt}`);
+        }
+        console.log();
+      }
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Watch Command
+// ============================================================================
+
+program
+  .command('watch')
+  .description('Watch for events in real-time')
+  .option('--type <type>', 'Filter by event type')
+  .action(async (options) => {
+    try {
+      const cube = await openCube();
+      const eventBus = cube.getEventBus();
+      
+      if (!eventBus) {
+        console.log('Event system not enabled.');
+        return;
+      }
+
+      console.log('\n👁 Watching for events... (Ctrl+C to stop)\n');
+
+      const eventType = options.type || '*';
+      eventBus.on(eventType, (event) => {
+        const time = new Date(event.timestamp).toLocaleTimeString();
+        let details = '';
+        if ('nodeId' in event) details = ` → ${(event as any).nodeId}`;
+        else if ('node' in event) details = ` → ${(event as any).node?.title || (event as any).node?.id}`;
+        
+        console.log(`[${time}] ${event.type}${details}`);
+      });
+
+      // Keep process running
+      await new Promise(() => {});
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : error);
       process.exit(1);

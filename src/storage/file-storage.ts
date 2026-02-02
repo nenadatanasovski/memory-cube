@@ -5,10 +5,10 @@
  * Directory structure: .cube/nodes/{type}/{id}.md
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, unlinkSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join, dirname, relative } from 'path';
 import type { Node, NodeType, CubeConfig } from '../core/types.js';
-import { nodeToMarkdown, markdownToNode, createNode } from '../core/node.js';
+import { nodeToMarkdown, markdownToNode } from '../core/node.js';
 
 const DEFAULT_CONFIG: CubeConfig = {
   version: '1.0',
