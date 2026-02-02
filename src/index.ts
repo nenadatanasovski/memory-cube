@@ -118,3 +118,29 @@ export type {
   AgentEvent,
   OrchestratorOptions,
 } from './agents/index.js';
+
+// Synthesis
+export {
+  SynthesisPipeline,
+  ConversationExtractor,
+  CodeAnalyzer,
+} from './synthesis/index.js';
+
+export type {
+  SourceType,
+  Source,
+  ExtractedEntity,
+  ExtractedRelation,
+  ExtractedNode,
+  ExtractionResult,
+  CodeFunction,
+  CodeClass,
+  CodeModule,
+  CodeAnalysisResult,
+  ConversationMessage,
+  ConversationIntent,
+  ConversationAnalysisResult,
+  SimilarityMatch,
+  DeduplicationResult,
+  SynthesisConfig,
+} from './synthesis/index.js';

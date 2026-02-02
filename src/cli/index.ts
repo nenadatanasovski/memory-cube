@@ -921,5 +921,176 @@ program
     }
   });
 
+// ============================================================================
+// Extract Command
+// ============================================================================
+
+program
+  .command('extract <source-type> <input>')
+  .description('Extract nodes from text or file (conversation, code, markdown)')
+  .option('--create', 'Actually create the nodes')
+  .option('--min-confidence <n>', 'Minimum confidence threshold', '0.5')
+  .action(async (sourceType: string, input: string, options) => {
+    try {
+      const { SynthesisPipeline } = await import('../synthesis/index.js');
+      const { readFileSync, existsSync } = await import('fs');
+      
+      const cube = await openCube();
+      const pipeline = new SynthesisPipeline({
+        minConfidence: parseFloat(options.minConfidence),
+        autoCreate: options.create,
+        requireApproval: !options.create,
+      });
+      pipeline.setCube(cube);
+      
+      // Determine if input is a file or text
+      let content: string;
+      let metadata: any = {};
+      
+      if (existsSync(input)) {
+        content = readFileSync(input, 'utf-8');
+        metadata.path = input;
+        
+        // Auto-detect source type from file extension if not specified
+        if (sourceType === 'auto') {
+          if (input.endsWith('.ts') || input.endsWith('.js')) {
+            sourceType = 'code';
+            metadata.language = input.endsWith('.ts') ? 'typescript' : 'javascript';
+          } else if (input.endsWith('.md')) {
+            sourceType = 'markdown';
+          } else {
+            sourceType = 'conversation';
+          }
+        }
+      } else {
+        content = input;
+      }
+      
+      const result = await pipeline.extract({
+        type: sourceType as any,
+        content,
+        metadata,
+      });
+      
+      console.log(`\n🔍 Extraction Results\n`);
+      console.log(`  Source: ${sourceType}`);
+      console.log(`  Processing time: ${result.metadata.processingTimeMs}ms`);
+      console.log(`  Nodes found: ${result.nodes.length}`);
+      console.log(`  Relations found: ${result.relations.length}`);
+      
+      if (result.nodes.length > 0) {
+        console.log('\n  📝 Extracted Nodes:\n');
+        for (const node of result.nodes) {
+          const conf = (node.confidence * 100).toFixed(0);
+          console.log(`    [${node.suggestedType}] ${node.suggestedTitle}`);
+          console.log(`      Confidence: ${conf}%`);
+          console.log(`      Tags: ${node.suggestedTags.join(', ') || '(none)'}`);
+          console.log();
+        }
+      }
+      
+      if (result.relations.length > 0) {
+        console.log('  🔗 Extracted Relations:\n');
+        for (const rel of result.relations) {
+          console.log(`    ${rel.from} --${rel.type}--> ${rel.to}`);
+        }
+        console.log();
+      }
+      
+      // Create nodes if requested
+      if (options.create && result.nodes.length > 0) {
+        const createResult = await pipeline.createNodes(result, undefined, {
+          approved: result.nodes.map(n => n.suggestedTitle),
+        });
+        
+        console.log('  ✓ Creation Results:\n');
+        if (createResult.created.length > 0) {
+          console.log(`    Created: ${createResult.created.length}`);
+          for (const id of createResult.created) {
+            console.log(`      - ${id}`);
+          }
+        }
+        if (createResult.skipped.length > 0) {
+          console.log(`    Skipped: ${createResult.skipped.length}`);
+        }
+        if (createResult.errors.length > 0) {
+          console.log(`    Errors: ${createResult.errors.length}`);
+          for (const err of createResult.errors) {
+            console.log(`      - ${err}`);
+          }
+        }
+        console.log();
+      }
+      
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// Analyze Code Command
+// ============================================================================
+
+program
+  .command('analyze-code <file>')
+  .description('Analyze a source code file')
+  .action(async (file: string) => {
+    try {
+      const { CodeAnalyzer } = await import('../synthesis/index.js');
+      const { readFileSync, existsSync } = await import('fs');
+      
+      if (!existsSync(file)) {
+        console.error(`File not found: ${file}`);
+        process.exit(1);
+      }
+      
+      const content = readFileSync(file, 'utf-8');
+      const analyzer = new CodeAnalyzer();
+      
+      const result = analyzer.analyze({
+        type: 'code',
+        content,
+        metadata: { path: file },
+      });
+      
+      const mod = result.module;
+      
+      console.log(`\n📊 Code Analysis: ${file}\n`);
+      console.log(`  Language: ${mod.language}`);
+      console.log(`  Imports: ${mod.imports.length}`);
+      console.log(`  Exports: ${mod.exports.length}`);
+      console.log(`  Functions: ${mod.functions.length}`);
+      console.log(`  Classes: ${mod.classes.length}`);
+      
+      if (mod.functions.length > 0) {
+        console.log('\n  📦 Functions:\n');
+        for (const func of mod.functions) {
+          const exp = func.exports ? ' (exported)' : '';
+          console.log(`    ${func.signature}${exp}`);
+          console.log(`      Lines: ${func.startLine}-${func.endLine}, Complexity: ${func.complexity}`);
+          if (func.dependencies.length > 0) {
+            console.log(`      Calls: ${func.dependencies.join(', ')}`);
+          }
+        }
+      }
+      
+      if (mod.classes.length > 0) {
+        console.log('\n  🏗 Classes:\n');
+        for (const cls of mod.classes) {
+          const ext = cls.extends ? ` extends ${cls.extends}` : '';
+          console.log(`    class ${cls.name}${ext}`);
+          console.log(`      Lines: ${cls.startLine}-${cls.endLine}`);
+          console.log(`      Methods: ${cls.methods.map(m => m.name).join(', ')}`);
+        }
+      }
+      
+      console.log();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // Parse and execute
 program.parse();
