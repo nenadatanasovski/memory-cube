@@ -1669,6 +1669,7 @@
     async function showSearchResults() {
       const search = document.getElementById('filter-search').value.trim();
       const resultsDiv = document.getElementById('search-results');
+      const useSemantic = document.getElementById('semantic-search').checked;
       
       if (!search) {
         resultsDiv.classList.remove('visible');
@@ -1676,15 +1677,33 @@
       }
 
       try {
-        const res = await fetch(`/api/nodes?search=${encodeURIComponent(search)}&limit=10`);
-        const data = await res.json();
+        let data;
+        
+        if (useSemantic) {
+          // Use semantic/vector search
+          const res = await fetch(`/api/similar?q=${encodeURIComponent(search)}&limit=10`);
+          data = await res.json();
+          // Transform results format
+          data.nodes = data.results.map(r => ({
+            id: r.id,
+            title: r.title,
+            type: r.type,
+            score: r.score,
+          }));
+        } else {
+          // Use keyword search
+          const res = await fetch(`/api/nodes?search=${encodeURIComponent(search)}&limit=10`);
+          data = await res.json();
+        }
         
         if (data.nodes.length === 0) {
           resultsDiv.innerHTML = '<div class="search-result" style="color:#888">No results</div>';
         } else {
           resultsDiv.innerHTML = data.nodes.map(n => `
             <div class="search-result" onclick="focusNode('${n.id}')">
-              ${n.title}<span class="search-result-type">${n.type}</span>
+              ${escapeHtml(n.title)}
+              <span class="search-result-type">${n.type}</span>
+              ${n.score ? `<span class="search-result-score">${Math.round(n.score * 100)}%</span>` : ''}
             </div>
           `).join('');
         }
