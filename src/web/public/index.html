@@ -454,6 +454,41 @@
       margin-bottom: 16px;
     }
 
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 300px;
+      z-index: 1002;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 12px 20px;
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: slideIn 0.3s ease;
+      max-width: 300px;
+    }
+
+    .toast.success { border-left-color: #4ecdc4; }
+    .toast.error { border-left-color: #e94560; }
+    .toast.info { border-left-color: #6a89cc; }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+
     /* Mini-map */
     .minimap {
       position: absolute;
@@ -851,6 +886,9 @@
         <button class="zoom-btn" onclick="fitGraph()" title="Fit to View (0)">⊡</button>
       </div>
 
+      <!-- Toast notifications -->
+      <div class="toast-container" id="toast-container"></div>
+
       <!-- Keyboard shortcuts help -->
       <div class="shortcuts-help" id="shortcuts-help">
         <span class="shortcut-key">/</span> Search
@@ -1009,6 +1047,20 @@
 
   <script>
     let cy = null;
+
+    // Toast notifications
+    function toast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = message;
+      container.appendChild(t);
+      
+      setTimeout(() => {
+        t.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => t.remove(), 300);
+      }, duration);
+    }
 
     // Theme toggle
     function toggleTheme() {
@@ -1836,8 +1888,9 @@
         if (result.node) {
           history.push({ type: 'create', nodeId: result.node.id, data: { type, title } });
           loadGraph();
+          toast(`Created ${type}: ${title}`, 'success');
         } else {
-          alert('Error: ' + (result.error || 'Failed to create'));
+          toast('Error: ' + (result.error || 'Failed to create'), 'error');
         }
       })
       .catch(err => alert('Error: ' + err.message));
@@ -2127,7 +2180,7 @@
           }
         }
 
-        alert(`Imported ${imported} nodes` + (errors > 0 ? `, ${errors} errors` : ''));
+        toast(`Imported ${imported} nodes` + (errors > 0 ? `, ${errors} errors` : ''), errors > 0 ? 'error' : 'success');
         loadGraph();
         
       } catch (err) {
