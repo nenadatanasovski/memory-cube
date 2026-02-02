@@ -418,5 +418,32 @@ program
     }
   });
 
+// ============================================================================
+// Sync Command
+// ============================================================================
+
+program
+  .command('sync')
+  .description('Rebuild the index from files')
+  .action(async () => {
+    try {
+      const cube = await openCube();
+      const result = cube.rebuildIndex();
+      
+      console.log(`\n✓ Indexed ${result.indexed} node(s)`);
+      
+      if (result.errors.length > 0) {
+        console.log(`\n⚠ ${result.errors.length} error(s):`);
+        for (const error of result.errors) {
+          console.log(`  - ${error}`);
+        }
+      }
+      console.log();
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // Parse and execute
 program.parse();

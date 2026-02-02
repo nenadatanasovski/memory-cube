@@ -45,3 +45,4 @@ export type {
 
 // Storage
 export { FileStorage } from './storage/file-storage.js';
+export { SqliteIndex } from './storage/sqlite-index.js';

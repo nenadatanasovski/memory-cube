@@ -21,13 +21,17 @@ import type {
 } from './types.js';
 import { createNode, updateNode, addEdge, removeEdge } from './node.js';
 import { FileStorage } from '../storage/file-storage.js';
+import { SqliteIndex } from '../storage/sqlite-index.js';
 
 export class Cube {
   private storage: FileStorage;
+  private index: SqliteIndex | null = null;
   private initialized: boolean = false;
+  private useIndex: boolean = true;
 
-  constructor(basePath: string = process.cwd()) {
+  constructor(basePath: string = process.cwd(), options?: { useIndex?: boolean }) {
     this.storage = new FileStorage(basePath);
+    this.useIndex = options?.useIndex ?? true;
   }
 
   /**
@@ -37,7 +41,54 @@ export class Cube {
     if (!this.storage.isInitialized()) {
       this.storage.init();
     }
+    
+    // Initialize SQLite index
+    if (this.useIndex) {
+      this.index = new SqliteIndex(this.storage.getRootPath());
+      
+      // Check if index needs rebuilding (empty but files exist)
+      const indexCount = this.index.count();
+      const fileNodes = this.storage.listAllNodes();
+      
+      if (indexCount === 0 && fileNodes.length > 0) {
+        // Rebuild index from files
+        for (const node of fileNodes) {
+          this.index.indexNode(node);
+        }
+      }
+    }
+    
     this.initialized = true;
+  }
+
+  /**
+   * Rebuild the index from files
+   */
+  rebuildIndex(): { indexed: number; errors: string[] } {
+    this.ensureInitialized();
+    
+    if (!this.index) {
+      return { indexed: 0, errors: ['Index not enabled'] };
+    }
+
+    const errors: string[] = [];
+    let indexed = 0;
+
+    // Clear existing index
+    this.index.clear();
+
+    // Re-index all files
+    const nodes = this.storage.listAllNodes();
+    for (const node of nodes) {
+      try {
+        this.index.indexNode(node);
+        indexed++;
+      } catch (error) {
+        errors.push(`Failed to index ${node.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return { indexed, errors };
   }
 
   /**
@@ -81,6 +132,12 @@ export class Cube {
       }
 
       const saved = this.storage.saveNode(nodeWithEdges);
+      
+      // Update index
+      if (this.index) {
+        this.index.indexNode(saved);
+      }
+      
       return { success: true, data: saved };
     } catch (error) {
       return { 
@@ -116,6 +173,12 @@ export class Cube {
 
     const updated = updateNode(existing, updates);
     const saved = this.storage.saveNode(updated);
+    
+    // Update index
+    if (this.index) {
+      this.index.indexNode(saved);
+    }
+    
     return { success: true, data: saved };
   }
 
@@ -129,6 +192,12 @@ export class Cube {
     if (!deleted) {
       return { success: false, error: `Node not found: ${id}` };
     }
+    
+    // Remove from index
+    if (this.index) {
+      this.index.removeNode(id);
+    }
+    
     return { success: true };
   }
 
@@ -168,6 +237,12 @@ export class Cube {
 
     const updated = addEdge(fromNode, { type, to: toId, metadata });
     const saved = this.storage.saveNode(updated);
+    
+    // Update index
+    if (this.index) {
+      this.index.indexNode(saved);
+    }
+    
     return { success: true, data: saved };
   }
 
@@ -190,6 +265,12 @@ export class Cube {
 
     const updated = removeEdge(fromNode, edgeId);
     const saved = this.storage.saveNode(updated);
+    
+    // Update index
+    if (this.index) {
+      this.index.indexNode(saved);
+    }
+    
     return { success: true, data: saved };
   }
 
@@ -204,24 +285,42 @@ export class Cube {
     this.ensureInitialized();
 
     try {
-      let nodes = this.storage.listAllNodes();
+      let nodes: Node[];
 
-      // Apply filters
-      if (options.filter) {
-        nodes = this.applyFilter(nodes, options.filter);
-      }
+      // Use index if available
+      if (this.index) {
+        const ids = this.index.query(
+          options.filter,
+          options.sort,
+          options.limit,
+          options.offset
+        );
+        
+        // Load full nodes from files
+        nodes = ids
+          .map(id => this.storage.loadNode(id))
+          .filter((n): n is Node => n !== null);
+      } else {
+        // Fall back to file-based query
+        nodes = this.storage.listAllNodes();
 
-      // Apply sorting
-      if (options.sort && options.sort.length > 0) {
-        nodes = this.applySort(nodes, options.sort);
-      }
+        // Apply filters
+        if (options.filter) {
+          nodes = this.applyFilter(nodes, options.filter);
+        }
 
-      // Apply pagination
-      if (options.offset) {
-        nodes = nodes.slice(options.offset);
-      }
-      if (options.limit) {
-        nodes = nodes.slice(0, options.limit);
+        // Apply sorting
+        if (options.sort && options.sort.length > 0) {
+          nodes = this.applySort(nodes, options.sort);
+        }
+
+        // Apply pagination
+        if (options.offset) {
+          nodes = nodes.slice(options.offset);
+        }
+        if (options.limit) {
+          nodes = nodes.slice(0, options.limit);
+        }
       }
 
       // Strip content if not requested
