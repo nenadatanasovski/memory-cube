@@ -171,9 +171,53 @@ export class WebServer {
         }
         break;
 
+      case '/api/similar':
+        await this.handleSimilarSearch(url, res);
+        break;
+
       default:
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not found' }));
+    }
+  }
+
+  /**
+   * Handle similarity search
+   */
+  private async handleSimilarSearch(url: URL, res: ServerResponse): Promise<void> {
+    const query = url.searchParams.get('q');
+    const nodeId = url.searchParams.get('id');
+    const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+
+    try {
+      let results;
+      
+      if (nodeId) {
+        // Find similar to a specific node
+        results = await this.cube.findSimilarTo(nodeId, limit);
+      } else if (query) {
+        // Search by query text
+        results = await this.cube.searchSimilar(query, limit);
+      } else {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Either q or id parameter required' }));
+        return;
+      }
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        results: results.map(r => ({
+          id: r.node.id,
+          title: r.node.title,
+          type: r.node.type,
+          score: Math.round(r.score * 1000) / 1000, // Round to 3 decimals
+          tags: r.node.tags,
+        })),
+      }));
+    } catch (error) {
+      console.error('Similarity search error:', error);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Search failed' }));
     }
   }
 
