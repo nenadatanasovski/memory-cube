@@ -1092,5 +1092,54 @@ program
     }
   });
 
+// ============================================================================
+// Serve Command
+// ============================================================================
+
+program
+  .command('serve')
+  .description('Start the web visualization server')
+  .option('-p, --port <port>', 'Server port', '8080')
+  .option('-h, --host <host>', 'Server host', 'localhost')
+  .option('--open', 'Open browser automatically')
+  .action(async (options) => {
+    try {
+      const { WebServer } = await import('../web/index.js');
+      
+      const cube = await openCube();
+      const server = new WebServer(cube, {
+        port: parseInt(options.port, 10),
+        host: options.host,
+      });
+
+      await server.start();
+
+      if (options.open) {
+        const { exec } = await import('child_process');
+        const url = server.getUrl();
+        
+        // Cross-platform open
+        const cmd = process.platform === 'darwin' ? 'open' 
+          : process.platform === 'win32' ? 'start' 
+          : 'xdg-open';
+        
+        exec(`${cmd} ${url}`);
+      }
+
+      // Keep running until Ctrl+C
+      process.on('SIGINT', async () => {
+        console.log('\nShutting down...');
+        await server.stop();
+        await cube.shutdown();
+        process.exit(0);
+      });
+
+      console.log('Press Ctrl+C to stop.\n');
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // Parse and execute
 program.parse();

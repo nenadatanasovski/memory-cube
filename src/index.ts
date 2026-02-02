@@ -144,3 +144,7 @@ export type {
   DeduplicationResult,
   SynthesisConfig,
 } from './synthesis/index.js';
+
+// Web
+export { WebServer } from './web/index.js';
+export type { ServerOptions } from './web/index.js';

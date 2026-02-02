@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Cube</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: #16213e;
+      padding: 16px;
+      overflow-y: auto;
+      border-right: 1px solid #0f3460;
+    }
+
+    .sidebar h1 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #e94560;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sidebar h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      color: #888;
+      margin: 16px 0 8px 0;
+      letter-spacing: 1px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: #0f3460;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #e94560;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    /* Filters */
+    .filter-group {
+      margin-bottom: 12px;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 14px;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+
+    .btn:hover {
+      background: #ff6b6b;
+    }
+
+    .btn-secondary {
+      background: #0f3460;
+    }
+
+    .btn-secondary:hover {
+      background: #1a4a7a;
+    }
+
+    /* Graph container */
+    .graph-container {
+      flex: 1;
+      position: relative;
+    }
+
+    #cy {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Node detail panel */
+    .detail-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 350px;
+      max-height: calc(100vh - 32px);
+      background: #16213e;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      display: none;
+      overflow: hidden;
+    }
+
+    .detail-panel.active {
+      display: block;
+    }
+
+    .detail-header {
+      padding: 16px;
+      background: #0f3460;
+      border-bottom: 1px solid #1a1a2e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .detail-header h3 {
+      font-size: 16px;
+      margin: 0;
+    }
+
+    .detail-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .detail-close:hover {
+      color: #e94560;
+    }
+
+    .detail-content {
+      padding: 16px;
+      overflow-y: auto;
+      max-height: calc(100vh - 120px);
+    }
+
+    .detail-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .meta-item {
+      background: #1a1a2e;
+      padding: 8px;
+      border-radius: 4px;
+    }
+
+    .meta-label {
+      font-size: 10px;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    .meta-value {
+      font-size: 14px;
+      margin-top: 2px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #0f3460;
+      border-radius: 12px;
+      font-size: 12px;
+      margin: 2px;
+    }
+
+    .detail-edges {
+      margin-top: 16px;
+    }
+
+    .edge-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .edge-type {
+      color: #e94560;
+      margin: 0 8px;
+    }
+
+    .detail-body {
+      margin-top: 16px;
+      padding: 12px;
+      background: #1a1a2e;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    /* Legend */
+    .legend {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #0f3460;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 8px;
+    }
+
+    /* Loading */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #888;
+    }
+
+    /* Type colors */
+    .type-task { background: #e94560; }
+    .type-doc { background: #4ecdc4; }
+    .type-code { background: #ffe66d; }
+    .type-decision { background: #95e1d3; }
+    .type-ideation { background: #f38181; }
+    .type-brainfart { background: #aa96da; }
+    .type-research { background: #fcbad3; }
+    .type-conversation { background: #a8d8ea; }
+    .type-concept { background: #f9ed69; }
+    .type-event { background: #b8de6f; }
+    .type-agent { background: #ff9a3c; }
+    .type-project { background: #6a89cc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <h1>🧊 Memory Cube</h1>
+      
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="stat-nodes">-</div>
+          <div class="stat-label">Nodes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-edges">-</div>
+          <div class="stat-label">Edges</div>
+        </div>
+      </div>
+
+      <h2>Filters</h2>
+      
+      <div class="filter-group">
+        <label>Type</label>
+        <select id="filter-type" multiple>
+          <option value="">All Types</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="filter-status">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="active">Active</option>
+          <option value="blocked">Blocked</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Validity</label>
+        <select id="filter-validity">
+          <option value="">All</option>
+          <option value="current">Current</option>
+          <option value="stale">Stale</option>
+          <option value="superseded">Superseded</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Search</label>
+        <input type="text" id="filter-search" placeholder="Search nodes...">
+      </div>
+
+      <button class="btn" onclick="loadGraph()">Apply Filters</button>
+      <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+
+      <div class="legend">
+        <h2>Node Types</h2>
+        <div class="legend-item"><span class="legend-color type-task"></span> Task</div>
+        <div class="legend-item"><span class="legend-color type-doc"></span> Doc</div>
+        <div class="legend-item"><span class="legend-color type-code"></span> Code</div>
+        <div class="legend-item"><span class="legend-color type-decision"></span> Decision</div>
+        <div class="legend-item"><span class="legend-color type-ideation"></span> Ideation</div>
+        <div class="legend-item"><span class="legend-color type-brainfart"></span> Brainfart</div>
+        <div class="legend-item"><span class="legend-color type-research"></span> Research</div>
+      </div>
+    </aside>
+
+    <main class="graph-container">
+      <div id="cy"></div>
+      <div class="loading" id="loading">Loading graph...</div>
+      
+      <div class="detail-panel" id="detail-panel">
+        <div class="detail-header">
+          <h3 id="detail-title">Node Details</h3>
+          <button class="detail-close" onclick="closeDetail()">×</button>
+        </div>
+        <div class="detail-content">
+          <div class="detail-meta" id="detail-meta"></div>
+          <div id="detail-tags"></div>
+          <div class="detail-edges" id="detail-edges"></div>
+          <div class="detail-body" id="detail-body"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let cy = null;
+
+    // Node colors by type
+    const typeColors = {
+      task: '#e94560',
+      doc: '#4ecdc4',
+      code: '#ffe66d',
+      decision: '#95e1d3',
+      ideation: '#f38181',
+      brainfart: '#aa96da',
+      research: '#fcbad3',
+      conversation: '#a8d8ea',
+      concept: '#f9ed69',
+      event: '#b8de6f',
+      agent: '#ff9a3c',
+      project: '#6a89cc',
+    };
+
+    // Initialize Cytoscape
+    function initCytoscape() {
+      cy = cytoscape({
+        container: document.getElementById('cy'),
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'label': 'data(label)',
+              'text-valign': 'bottom',
+              'text-halign': 'center',
+              'font-size': '10px',
+              'color': '#ccc',
+              'text-margin-y': 5,
+              'width': 30,
+              'height': 30,
+              'background-color': '#666',
+              'border-width': 2,
+              'border-color': '#444',
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 2,
+              'line-color': '#444',
+              'target-arrow-color': '#444',
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier',
+              'arrow-scale': 0.8,
+            }
+          },
+          {
+            selector: 'node:selected',
+            style: {
+              'border-width': 4,
+              'border-color': '#fff',
+            }
+          },
+          // Type-specific colors
+          ...Object.entries(typeColors).map(([type, color]) => ({
+            selector: `node.${type}`,
+            style: { 'background-color': color }
+          })),
+          // Status styles
+          {
+            selector: 'node.complete',
+            style: { 'opacity': 0.6 }
+          },
+          {
+            selector: 'node.blocked',
+            style: { 'border-style': 'dashed' }
+          },
+          // Edge type colors
+          {
+            selector: 'edge.blocks, edge.blocked-by',
+            style: { 'line-color': '#e94560', 'target-arrow-color': '#e94560' }
+          },
+          {
+            selector: 'edge.depends-on',
+            style: { 'line-color': '#ffe66d', 'target-arrow-color': '#ffe66d' }
+          },
+          {
+            selector: 'edge.implements',
+            style: { 'line-color': '#4ecdc4', 'target-arrow-color': '#4ecdc4' }
+          },
+        ],
+        layout: {
+          name: 'cose',
+          animate: false,
+          nodeRepulsion: 8000,
+          idealEdgeLength: 100,
+        },
+      });
+
+      // Click handler
+      cy.on('tap', 'node', (evt) => {
+        const nodeId = evt.target.id();
+        showNodeDetail(nodeId);
+      });
+
+      cy.on('tap', (evt) => {
+        if (evt.target === cy) {
+          closeDetail();
+        }
+      });
+    }
+
+    // Load graph data
+    async function loadGraph() {
+      document.getElementById('loading').style.display = 'block';
+
+      const params = new URLSearchParams();
+      
+      const type = document.getElementById('filter-type').value;
+      if (type) params.set('type', type);
+      
+      const status = document.getElementById('filter-status').value;
+      if (status) params.set('status', status);
+      
+      const validity = document.getElementById('filter-validity').value;
+      if (validity) params.set('validity', validity);
+      
+      const search = document.getElementById('filter-search').value;
+      if (search) params.set('search', search);
+
+      try {
+        const res = await fetch(`/api/graph?${params}`);
+        const data = await res.json();
+
+        cy.elements().remove();
+        cy.add(data.nodes);
+        cy.add(data.edges);
+
+        cy.layout({
+          name: 'cose',
+          animate: true,
+          animationDuration: 500,
+          nodeRepulsion: 8000,
+          idealEdgeLength: 100,
+        }).run();
+
+        document.getElementById('stat-nodes').textContent = data.nodes.length;
+        document.getElementById('stat-edges').textContent = data.edges.length;
+      } catch (err) {
+        console.error('Failed to load graph:', err);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    // Show node details
+    async function showNodeDetail(nodeId) {
+      try {
+        const res = await fetch(`/api/node?id=${encodeURIComponent(nodeId)}`);
+        const data = await res.json();
+        const node = data.node;
+
+        document.getElementById('detail-title').textContent = node.title;
+        
+        document.getElementById('detail-meta').innerHTML = `
+          <div class="meta-item">
+            <div class="meta-label">Type</div>
+            <div class="meta-value">${node.type}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Status</div>
+            <div class="meta-value">${node.status}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Priority</div>
+            <div class="meta-value">${node.priority}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Validity</div>
+            <div class="meta-value">${node.validity}</div>
+          </div>
+        `;
+
+        document.getElementById('detail-tags').innerHTML = node.tags.length 
+          ? node.tags.map(t => `<span class="tag">${t}</span>`).join('')
+          : '<span style="color:#666">No tags</span>';
+
+        if (node.edges.length > 0) {
+          document.getElementById('detail-edges').innerHTML = `
+            <h4 style="font-size:12px;color:#888;margin-bottom:8px">RELATIONSHIPS</h4>
+            ${node.edges.map(e => `
+              <div class="edge-item">
+                <span>this</span>
+                <span class="edge-type">→ ${e.type} →</span>
+                <span>${e.to.split('/').pop()}</span>
+              </div>
+            `).join('')}
+          `;
+        } else {
+          document.getElementById('detail-edges').innerHTML = '';
+        }
+
+        document.getElementById('detail-body').textContent = node.content || '(no content)';
+
+        document.getElementById('detail-panel').classList.add('active');
+      } catch (err) {
+        console.error('Failed to load node:', err);
+      }
+    }
+
+    // Close detail panel
+    function closeDetail() {
+      document.getElementById('detail-panel').classList.remove('active');
+    }
+
+    // Reset filters
+    function resetFilters() {
+      document.getElementById('filter-type').value = '';
+      document.getElementById('filter-status').value = '';
+      document.getElementById('filter-validity').value = '';
+      document.getElementById('filter-search').value = '';
+      loadGraph();
+    }
+
+    // Load type options
+    async function loadTypes() {
+      try {
+        const res = await fetch('/api/types');
+        const data = await res.json();
+        
+        const select = document.getElementById('filter-type');
+        select.innerHTML = '<option value="">All Types</option>' +
+          data.types.map(t => `<option value="${t}">${t}</option>`).join('');
+      } catch (err) {
+        console.error('Failed to load types:', err);
+      }
+    }
+
+    // Initialize
+    initCytoscape();
+    loadTypes();
+    loadGraph();
+  </script>
+</body>
+</html>
