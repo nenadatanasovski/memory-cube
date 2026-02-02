@@ -472,6 +472,10 @@
 
       <button class="btn" onclick="loadGraph()">Apply Filters</button>
       <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+      
+      <h2>Export</h2>
+      <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
+      <button class="btn btn-secondary" onclick="exportPNG()">🖼️ PNG</button>
 
       <div class="legend">
         <h2>Node Types</h2>
@@ -943,6 +947,39 @@
           break;
       }
     });
+
+    // Export functions
+    function exportJSON() {
+      const data = {
+        nodes: cy.nodes().map(n => n.data()),
+        edges: cy.edges().map(e => e.data()),
+        exportedAt: new Date().toISOString(),
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `memory-cube-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPNG() {
+      const png = cy.png({ 
+        output: 'blob', 
+        bg: '#1a1a2e',
+        scale: 2,
+        full: true
+      });
+      
+      const url = URL.createObjectURL(png);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `memory-cube-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
 
     // Debounce helper
     function debounce(fn, ms) {

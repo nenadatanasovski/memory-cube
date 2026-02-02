@@ -40,7 +40,7 @@ This document is my continuous development loop. I use it to plan, build, test, 
 ### Performance
 - [ ] Lazy load for 100+ nodes
 - [ ] Virtual scrolling in detail panel
-- [ ] Debounced search
+- [x] Debounced search (300ms)
 
 ### Data Quality
 - [ ] Architecture doc has actual content
