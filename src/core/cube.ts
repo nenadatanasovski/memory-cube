@@ -38,12 +38,14 @@ import {
   type CubeSystemEvent,
 } from '../events/index.js';
 import { Orchestrator, type OrchestratorOptions } from '../agents/index.js';
+import { SimpleEmbedding, VectorIndex } from './embeddings.js';
 
 export interface CubeOptions {
   useIndex?: boolean;
   useEvents?: boolean;
   useFileWatcher?: boolean;
   useAgents?: boolean;
+  useVectors?: boolean;
   agentOptions?: OrchestratorOptions;
 }
 
@@ -67,6 +69,10 @@ export class Cube {
   private useAgents: boolean = false;
   private agentOptions?: OrchestratorOptions;
 
+  // Vector/embedding system
+  private vectorIndex: VectorIndex | null = null;
+  private useVectors: boolean = true;
+
   constructor(basePath: string = process.cwd(), options?: CubeOptions) {
     this.basePath = basePath;
     this.storage = new FileStorage(basePath);
@@ -74,6 +80,7 @@ export class Cube {
     this.useEvents = options?.useEvents ?? true;
     this.useFileWatcher = options?.useFileWatcher ?? false;
     this.useAgents = options?.useAgents ?? false;
+    this.useVectors = options?.useVectors ?? true;
     this.agentOptions = options?.agentOptions;
   }
 
@@ -98,6 +105,18 @@ export class Cube {
         for (const node of fileNodes) {
           this.index.indexNode(node);
         }
+      }
+    }
+    
+    // Initialize vector index
+    if (this.useVectors) {
+      this.vectorIndex = new VectorIndex(new SimpleEmbedding());
+      
+      // Index existing nodes
+      const fileNodes = this.storage.listAllNodes();
+      for (const node of fileNodes) {
+        const text = `${node.title} ${node.content || ''} ${node.tags?.join(' ') || ''}`;
+        await this.vectorIndex.add(node.id, text);
       }
     }
     
@@ -244,6 +263,9 @@ export class Cube {
         this.index.indexNode(saved);
       }
       
+      // Update vector index (fire-and-forget for sync API)
+      this.updateVectorIndex(saved).catch(() => {});
+      
       // Emit event
       this.emitEvent({
         id: randomUUID(),
@@ -292,6 +314,9 @@ export class Cube {
     if (this.index) {
       this.index.indexNode(saved);
     }
+    
+    // Update vector index
+    this.updateVectorIndex(saved).catch(() => {});
     
     // Determine what changed
     const changedFields = Object.keys(updates).filter(key => {
@@ -355,6 +380,9 @@ export class Cube {
     if (this.index) {
       this.index.removeNode(id);
     }
+    
+    // Remove from vector index
+    this.removeFromVectorIndex(id);
     
     // Emit event
     if (node) {
@@ -804,6 +832,65 @@ export class Cube {
    */
   getOrchestrator(): Orchestrator | null {
     return this.orchestrator;
+  }
+
+  /**
+   * Search for similar nodes using vector embeddings
+   */
+  async searchSimilar(query: string, limit = 10): Promise<Array<{ node: Node; score: number }>> {
+    if (!this.vectorIndex) {
+      return [];
+    }
+
+    const results = await this.vectorIndex.search(query, limit);
+    const nodes: Array<{ node: Node; score: number }> = [];
+
+    for (const result of results) {
+      const node = this.storage.loadNode(result.id);
+      if (node) {
+        nodes.push({ node, score: result.score });
+      }
+    }
+
+    return nodes;
+  }
+
+  /**
+   * Find nodes similar to a given node
+   */
+  async findSimilarTo(nodeId: string, limit = 10): Promise<Array<{ node: Node; score: number }>> {
+    if (!this.vectorIndex) {
+      return [];
+    }
+
+    const results = await this.vectorIndex.findSimilar(nodeId, limit);
+    const nodes: Array<{ node: Node; score: number }> = [];
+
+    for (const result of results) {
+      const node = this.storage.loadNode(result.id);
+      if (node) {
+        nodes.push({ node, score: result.score });
+      }
+    }
+
+    return nodes;
+  }
+
+  /**
+   * Update vector index when a node changes
+   */
+  private async updateVectorIndex(node: Node): Promise<void> {
+    if (!this.vectorIndex) return;
+    const text = `${node.title} ${node.content || ''} ${node.tags?.join(' ') || ''}`;
+    await this.vectorIndex.add(node.id, text);
+  }
+
+  /**
+   * Remove from vector index when a node is deleted
+   */
+  private removeFromVectorIndex(nodeId: string): void {
+    if (!this.vectorIndex) return;
+    this.vectorIndex.remove(nodeId);
   }
 }
 
