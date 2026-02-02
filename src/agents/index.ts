@@ -22,3 +22,7 @@ export { WorkQueue } from './work-queue.js';
 // Orchestrator
 export { Orchestrator } from './orchestrator.js';
 export type { OrchestratorOptions } from './orchestrator.js';
+
+// Agents
+export { OrphanHunterAgent } from './orphan-hunter.js';
+export type { OrphanHunterConfig, ConnectionSuggestion } from './orphan-hunter.js';

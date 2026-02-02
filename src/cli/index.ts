@@ -1307,5 +1307,41 @@ program
     }
   });
 
+// Orphan Hunter Agent
+program
+  .command('orphans')
+  .description('Find orphan nodes and suggest connections')
+  .option('--apply', 'Apply suggested connections')
+  .option('--min-score <score>', 'Minimum similarity score (0-1)', '0.3')
+  .option('--limit <n>', 'Max suggestions per node', '3')
+  .action(async (options) => {
+    try {
+      const cube = await openCube();
+      const { OrphanHunterAgent } = await import('../agents/orphan-hunter.js');
+      
+      const agent = new OrphanHunterAgent({
+        minSimilarityScore: parseFloat(options.minScore),
+        maxSuggestionsPerNode: parseInt(options.limit, 10),
+      });
+      
+      console.log('🔍 Running Orphan Hunter...\n');
+      
+      const result = await agent.run(cube);
+      console.log(result.report);
+      
+      if (options.apply && result.suggestions.length > 0) {
+        console.log('\n⚡ Applying suggestions...');
+        const applied = await agent.applySuggestions(cube, result.suggestions);
+        console.log(`✓ Applied ${applied} connections`);
+      } else if (result.suggestions.length > 0) {
+        console.log('\nRun with --apply to create these connections');
+      }
+      
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // Parse and execute
 program.parse();
