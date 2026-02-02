@@ -153,6 +153,24 @@ export class WebServer {
         }
         break;
 
+      case '/api/github/import':
+        if (req.method === 'POST') {
+          await this.handleGitHubImport(req, res);
+        } else {
+          res.writeHead(405);
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+        break;
+
+      case '/api/github/export':
+        if (req.method === 'POST') {
+          await this.handleGitHubExport(req, res);
+        } else {
+          res.writeHead(405);
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+        break;
+
       default:
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not found' }));
@@ -319,6 +337,81 @@ export class WebServer {
       res.end(JSON.stringify({ node: result.data }));
     } catch (error: any) {
       res.writeHead(400);
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  /**
+   * Import GitHub issues
+   */
+  private async handleGitHubImport(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const data = await this.parseBody(req);
+      
+      if (!data.repo) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required field: repo' }));
+        return;
+      }
+
+      const { GitHubIntegration } = await import('../integrations/github.js');
+      const github = new GitHubIntegration(this.cube, { repo: data.repo });
+      
+      const authCheck = await github.checkAuth();
+      if (!authCheck.ok) {
+        res.writeHead(401);
+        res.end(JSON.stringify({ error: authCheck.error }));
+        return;
+      }
+
+      const result = await github.importIssues({
+        state: data.state || 'all',
+        labels: data.labels,
+        limit: data.limit || 100,
+      });
+
+      res.writeHead(200);
+      res.end(JSON.stringify(result));
+    } catch (error: any) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  /**
+   * Export node to GitHub issue
+   */
+  private async handleGitHubExport(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const data = await this.parseBody(req);
+      
+      if (!data.repo || !data.nodeId) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required fields: repo, nodeId' }));
+        return;
+      }
+
+      const { GitHubIntegration } = await import('../integrations/github.js');
+      const github = new GitHubIntegration(this.cube, { repo: data.repo });
+      
+      const authCheck = await github.checkAuth();
+      if (!authCheck.ok) {
+        res.writeHead(401);
+        res.end(JSON.stringify({ error: authCheck.error }));
+        return;
+      }
+
+      const result = await github.exportToIssue(data.nodeId);
+
+      if (result.ok) {
+        res.writeHead(201);
+        res.end(JSON.stringify(result));
+      } else {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: result.error }));
+      }
+    } catch (error: any) {
+      res.writeHead(500);
       res.end(JSON.stringify({ error: error.message }));
     }
   }

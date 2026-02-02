@@ -1141,5 +1141,171 @@ program
     }
   });
 
+// ============================================================================
+// GitHub Integration Commands
+// ============================================================================
+
+program
+  .command('github-import')
+  .description('Import GitHub issues into the cube')
+  .requiredOption('-r, --repo <owner/repo>', 'GitHub repository')
+  .option('-s, --state <state>', 'Issue state (open, closed, all)', 'all')
+  .option('-l, --labels <labels>', 'Filter by labels (comma-separated)')
+  .option('-n, --limit <n>', 'Maximum issues to import', '100')
+  .action(async (options) => {
+    try {
+      const { GitHubIntegration } = await import('../integrations/github.js');
+      const cube = await openCube();
+      
+      const github = new GitHubIntegration(cube, { repo: options.repo });
+      
+      // Check auth
+      const authCheck = await github.checkAuth();
+      if (!authCheck.ok) {
+        console.error('❌', authCheck.error);
+        process.exit(1);
+      }
+      
+      console.log(`\n📥 Importing issues from ${options.repo}...\n`);
+      
+      const result = await github.importIssues({
+        state: options.state,
+        labels: options.labels?.split(','),
+        limit: parseInt(options.limit, 10),
+      });
+      
+      console.log(`  ✓ Imported: ${result.imported}`);
+      console.log(`  ↻ Updated: ${result.updated}`);
+      
+      if (result.errors.length > 0) {
+        console.log(`  ✗ Errors: ${result.errors.length}`);
+        for (const err of result.errors.slice(0, 5)) {
+          console.log(`    - ${err}`);
+        }
+      }
+      console.log();
+      
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('github-export <node-id>')
+  .description('Export a cube node to GitHub as an issue')
+  .requiredOption('-r, --repo <owner/repo>', 'GitHub repository')
+  .action(async (nodeId: string, options) => {
+    try {
+      const { GitHubIntegration } = await import('../integrations/github.js');
+      const cube = await openCube();
+      
+      const github = new GitHubIntegration(cube, { repo: options.repo });
+      
+      // Check auth
+      const authCheck = await github.checkAuth();
+      if (!authCheck.ok) {
+        console.error('❌', authCheck.error);
+        process.exit(1);
+      }
+      
+      console.log(`\n📤 Exporting ${nodeId} to ${options.repo}...\n`);
+      
+      const result = await github.exportToIssue(nodeId);
+      
+      if (result.ok) {
+        console.log(`  ✓ Created issue #${result.issueNumber}`);
+        console.log(`  🔗 ${result.url}`);
+      } else {
+        console.error(`  ✗ ${result.error}`);
+        process.exit(1);
+      }
+      console.log();
+      
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('github-prs')
+  .description('Import GitHub PRs into the cube')
+  .requiredOption('-r, --repo <owner/repo>', 'GitHub repository')
+  .option('-s, --state <state>', 'PR state (open, closed, merged, all)', 'all')
+  .option('-n, --limit <n>', 'Maximum PRs to import', '50')
+  .action(async (options) => {
+    try {
+      const { GitHubIntegration } = await import('../integrations/github.js');
+      const cube = await openCube();
+      
+      const github = new GitHubIntegration(cube, { repo: options.repo });
+      
+      // Check auth
+      const authCheck = await github.checkAuth();
+      if (!authCheck.ok) {
+        console.error('❌', authCheck.error);
+        process.exit(1);
+      }
+      
+      console.log(`\n📥 Importing PRs from ${options.repo}...\n`);
+      
+      const result = await github.importPRs({
+        state: options.state,
+        limit: parseInt(options.limit, 10),
+      });
+      
+      console.log(`  ✓ Imported: ${result.imported}`);
+      
+      if (result.errors.length > 0) {
+        console.log(`  ✗ Errors: ${result.errors.length}`);
+        for (const err of result.errors.slice(0, 5)) {
+          console.log(`    - ${err}`);
+        }
+      }
+      console.log();
+      
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('github-sync-status <node-id>')
+  .description('Sync node status changes to GitHub (open/close issue)')
+  .requiredOption('-r, --repo <owner/repo>', 'GitHub repository')
+  .action(async (nodeId: string, options) => {
+    try {
+      const { GitHubIntegration } = await import('../integrations/github.js');
+      const cube = await openCube();
+      
+      const github = new GitHubIntegration(cube, { repo: options.repo });
+      
+      // Check auth
+      const authCheck = await github.checkAuth();
+      if (!authCheck.ok) {
+        console.error('❌', authCheck.error);
+        process.exit(1);
+      }
+      
+      console.log(`\n🔄 Syncing ${nodeId} status to GitHub...\n`);
+      
+      const result = await github.syncStatusToGitHub(nodeId);
+      
+      if (result.ok) {
+        console.log('  ✓ Status synced');
+      } else {
+        console.error(`  ✗ ${result.error}`);
+        process.exit(1);
+      }
+      console.log();
+      
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // Parse and execute
 program.parse();
