@@ -685,6 +685,18 @@
       background: #c82333;
     }
 
+    .quick-add {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .btn-small {
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+
     .detail-actions {
       margin-top: 16px;
       padding-top: 16px;
@@ -778,8 +790,17 @@
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
       <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📥 Import JSON</button>
 
+      <h2>Quick Add</h2>
+      <div class="quick-add">
+        <button class="btn btn-small type-task" onclick="quickAdd('task')" title="New Task">📋</button>
+        <button class="btn btn-small type-doc" onclick="quickAdd('doc')" title="New Doc">📄</button>
+        <button class="btn btn-small type-ideation" onclick="quickAdd('ideation')" title="New Idea">💡</button>
+        <button class="btn btn-small type-brainfart" onclick="quickAdd('brainfart')" title="Brainfart">🧠</button>
+        <button class="btn btn-small type-decision" onclick="quickAdd('decision')" title="Decision">⚖️</button>
+        <button class="btn btn-small" onclick="showCreateModal()" title="Custom...">+</button>
+      </div>
+
       <h2>Actions</h2>
-      <button class="btn" onclick="showCreateModal()">+ New Node</button>
       <div style="margin-top: 8px;">
         <button class="btn btn-secondary" id="undo-btn" onclick="history.undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
         <button class="btn btn-secondary" id="redo-btn" onclick="history.redo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
@@ -1766,6 +1787,45 @@
 
       clearSelection();
       loadGraph();
+    }
+
+    // Quick add with templates
+    const templates = {
+      task: { title: '', tags: [], content: '## Acceptance Criteria\n\n- [ ] \n\n## Notes\n' },
+      doc: { title: '', tags: ['documentation'], content: '## Overview\n\n## Details\n\n## References\n' },
+      ideation: { title: '', tags: ['idea'], content: '## The Idea\n\n## Why it matters\n\n## Next steps\n' },
+      brainfart: { title: '', tags: ['random'], content: '' },
+      decision: { title: '', tags: ['decision'], content: '## Decision\n\n## Context\n\n## Options Considered\n\n## Rationale\n' },
+    };
+
+    function quickAdd(type) {
+      const title = prompt(`New ${type} title:`);
+      if (!title) return;
+
+      const template = templates[type] || {};
+      
+      fetch('/api/node', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          title,
+          content: template.content || '',
+          tags: template.tags || [],
+          status: 'pending',
+          priority: 'normal',
+        }),
+      })
+      .then(r => r.json())
+      .then(result => {
+        if (result.node) {
+          history.push({ type: 'create', nodeId: result.node.id, data: { type, title } });
+          loadGraph();
+        } else {
+          alert('Error: ' + (result.error || 'Failed to create'));
+        }
+      })
+      .catch(err => alert('Error: ' + err.message));
     }
 
     // Modal functions
