@@ -558,7 +558,7 @@
 
       <div class="filter-group">
         <label>Status</label>
-        <select id="filter-status">
+        <select id="filter-status" onchange="loadGraph()">
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
           <option value="active">Active</option>
@@ -569,7 +569,7 @@
 
       <div class="filter-group">
         <label>Validity</label>
-        <select id="filter-validity">
+        <select id="filter-validity" onchange="loadGraph()">
           <option value="">All</option>
           <option value="current">Current</option>
           <option value="stale">Stale</option>
@@ -648,6 +648,7 @@
           <div class="detail-body" id="detail-body"></div>
           <div class="detail-actions">
             <button class="btn btn-secondary" onclick="editCurrentNode()">✏️ Edit</button>
+            <button class="btn btn-secondary" onclick="showAddEdgeModal()">🔗 Link</button>
             <button class="btn btn-danger" onclick="deleteCurrentNode()">🗑️ Delete</button>
           </div>
         </div>
@@ -721,6 +722,49 @@
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
               <button type="submit" class="btn">Save Node</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Add Edge Modal -->
+      <div class="modal-overlay" id="edge-modal-overlay" onclick="closeEdgeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+          <div class="modal-header">
+            <h3>Add Relationship</h3>
+            <button class="detail-close" onclick="closeEdgeModal()">×</button>
+          </div>
+          <form class="modal-form" onsubmit="submitEdgeForm(event)">
+            <div class="form-group">
+              <label>From</label>
+              <input type="text" id="edge-from" readonly>
+            </div>
+
+            <div class="form-group">
+              <label for="edge-type">Relationship Type *</label>
+              <select id="edge-type" required>
+                <option value="depends-on">Depends On</option>
+                <option value="blocks">Blocks</option>
+                <option value="implements">Implements</option>
+                <option value="documents">Documents</option>
+                <option value="relates-to">Relates To</option>
+                <option value="part-of">Part Of</option>
+                <option value="spawns">Spawns</option>
+                <option value="supersedes">Supersedes</option>
+                <option value="derived-from">Derived From</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="edge-to">To (Node ID) *</label>
+              <select id="edge-to" required>
+                <!-- Populated by JS -->
+              </select>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeEdgeModal()">Cancel</button>
+              <button type="submit" class="btn">Create Link</button>
             </div>
           </form>
         </div>
@@ -1070,6 +1114,9 @@
       } else {
         allChip.classList.remove('active');
       }
+
+      // Auto-apply filter
+      loadGraph();
     }
 
     // Toggle all types (clear selection)
@@ -1077,6 +1124,7 @@
       activeTypes.clear();
       document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
       document.querySelector('.type-chip.all-types').classList.add('active');
+      loadGraph();
     }
 
     // Zoom functions
@@ -1239,6 +1287,64 @@
 
         closeDetail();
         loadGraph();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // Edge modal functions
+    async function showAddEdgeModal() {
+      if (!currentNodeId) return;
+      
+      document.getElementById('edge-from').value = currentNodeId;
+      
+      // Load all nodes for the target dropdown
+      try {
+        const res = await fetch('/api/nodes?limit=1000');
+        const data = await res.json();
+        
+        const select = document.getElementById('edge-to');
+        select.innerHTML = data.nodes
+          .filter(n => n.id !== currentNodeId)
+          .map(n => `<option value="${n.id}">${n.title} (${n.type})</option>`)
+          .join('');
+          
+        document.getElementById('edge-modal-overlay').classList.add('active');
+      } catch (err) {
+        alert('Error loading nodes: ' + err.message);
+      }
+    }
+
+    function closeEdgeModal() {
+      document.getElementById('edge-modal-overlay').classList.remove('active');
+    }
+
+    async function submitEdgeForm(e) {
+      e.preventDefault();
+      
+      const data = {
+        from: document.getElementById('edge-from').value,
+        type: document.getElementById('edge-type').value,
+        to: document.getElementById('edge-to').value,
+      };
+
+      try {
+        const res = await fetch('/api/edge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const result = await res.json();
+        
+        if (!res.ok) {
+          alert('Error: ' + (result.error || 'Unknown error'));
+          return;
+        }
+
+        closeEdgeModal();
+        loadGraph();
+        showNodeDetail(currentNodeId);
       } catch (err) {
         alert('Error: ' + err.message);
       }

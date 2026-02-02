@@ -142,6 +142,17 @@ export class WebServer {
         await this.handleTypes(res);
         break;
 
+      case '/api/edge':
+        if (req.method === 'POST') {
+          await this.handleCreateEdge(req, res);
+        } else if (req.method === 'DELETE') {
+          await this.handleDeleteEdge(req, res);
+        } else {
+          res.writeHead(405);
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+        }
+        break;
+
       default:
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not found' }));
@@ -252,6 +263,64 @@ export class WebServer {
 
     res.writeHead(200);
     res.end(JSON.stringify({ success: true }));
+  }
+
+  /**
+   * Create an edge between nodes
+   */
+  private async handleCreateEdge(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const data = await this.parseBody(req);
+      
+      if (!data.from || !data.type || !data.to) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required fields: from, type, to' }));
+        return;
+      }
+
+      const result = this.cube.link(data.from, data.type, data.to, data.metadata);
+
+      if (!result.success) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: result.error }));
+        return;
+      }
+
+      res.writeHead(201);
+      res.end(JSON.stringify({ node: result.data }));
+    } catch (error: any) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  /**
+   * Delete an edge between nodes
+   */
+  private async handleDeleteEdge(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const data = await this.parseBody(req);
+      
+      if (!data.from || !data.type || !data.to) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required fields: from, type, to' }));
+        return;
+      }
+
+      const result = this.cube.unlink(data.from, data.type, data.to);
+
+      if (!result.success) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: result.error }));
+        return;
+      }
+
+      res.writeHead(200);
+      res.end(JSON.stringify({ node: result.data }));
+    } catch (error: any) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: error.message }));
+    }
   }
 
   /**
