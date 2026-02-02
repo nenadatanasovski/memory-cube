@@ -445,6 +445,7 @@ export class WebServer {
           validity: node.validity,
           priority: node.priority,
           tags: node.tags,
+          created_at: node.createdAt,
         },
         classes: [node.type, node.status, node.validity, node.priority],
       });

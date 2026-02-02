@@ -829,6 +829,16 @@
       </div>
 
       <div class="filter-group">
+        <label>Created</label>
+        <select id="filter-time" onchange="loadGraph()">
+          <option value="">Any time</option>
+          <option value="today">Today</option>
+          <option value="week">This week</option>
+          <option value="month">This month</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
         <label>Search</label>
         <input type="text" id="filter-search" placeholder="Search nodes...">
         <div class="search-results" id="search-results"></div>
@@ -1426,7 +1436,36 @@
 
       try {
         const res = await fetch(`/api/graph?${params}`);
-        const data = await res.json();
+        let data = await res.json();
+
+        // Apply time filter client-side
+        const timeFilter = document.getElementById('filter-time').value;
+        if (timeFilter && data.nodes.length > 0) {
+          const now = new Date();
+          let cutoff;
+          switch (timeFilter) {
+            case 'today':
+              cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              break;
+            case 'week':
+              cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              break;
+            case 'month':
+              cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+              break;
+          }
+          if (cutoff) {
+            const cutoffTime = cutoff.getTime();
+            data.nodes = data.nodes.filter(n => {
+              const created = n.data.created_at ? new Date(n.data.created_at).getTime() : 0;
+              return created >= cutoffTime;
+            });
+            const nodeIds = new Set(data.nodes.map(n => n.data.id));
+            data.edges = data.edges.filter(e => 
+              nodeIds.has(e.data.source) && nodeIds.has(e.data.target)
+            );
+          }
+        }
 
         cy.elements().remove();
         cy.add(data.nodes);
