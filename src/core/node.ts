@@ -249,7 +249,8 @@ function buildYaml(obj: Record<string, unknown>, indent = 0): string {
       } else if (typeof value[0] === 'object') {
         yaml += `${spaces}${key}:\n`;
         for (const item of value) {
-          yaml += `${spaces}  - ${buildYaml(item as Record<string, unknown>, indent + 2).trim().replace(/\n/g, `\n${spaces}    `)}\n`;
+          const itemYaml = buildYamlObject(item as Record<string, unknown>);
+          yaml += `${spaces}  - ${itemYaml}\n`;
         }
       } else {
         yaml += `${spaces}${key}: [${value.map(v => JSON.stringify(v)).join(', ')}]\n`;
@@ -272,6 +273,13 @@ function buildYaml(obj: Record<string, unknown>, indent = 0): string {
 }
 
 /**
+ * Build a single-line JSON object for array items (valid JSON for easy parsing)
+ */
+function buildYamlObject(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj);
+}
+
+/**
  * Parse markdown with YAML frontmatter into a Node
  */
 export function markdownToNode(markdown: string, filePath: string): Node {
@@ -289,8 +297,11 @@ export function markdownToNode(markdown: string, filePath: string): Node {
   const title = titleMatch ? titleMatch[1] : 'Untitled';
   const content = body.replace(/^# .+\n\n?/, '');
 
-  // Parse edges
-  const edges: Edge[] = (meta.edges || []).map((e: Record<string, unknown>) => ({
+  // Parse edges - handle both array and object formats
+  const rawEdges = meta.edges || [];
+  const edgeArray = Array.isArray(rawEdges) ? rawEdges : [];
+  
+  const edges: Edge[] = edgeArray.map((e: Record<string, unknown>) => ({
     id: `${meta.id}--${e.type}-->${e.target}`,
     from: meta.id as string,
     to: e.target as string,
@@ -307,7 +318,7 @@ export function markdownToNode(markdown: string, filePath: string): Node {
     validity: meta.validity as NodeValidity,
     confidence: meta.confidence as number,
     priority: meta.priority as Priority,
-    tags: meta.tags as string[],
+    tags: Array.isArray(meta.tags) ? meta.tags : [],
     createdBy: meta.created_by as string | null,
     assignedTo: meta.assigned_to as string | null,
     lockedBy: meta.locked_by as string | null,
@@ -319,7 +330,7 @@ export function markdownToNode(markdown: string, filePath: string): Node {
       semanticHash: meta.ordering?.semantic_hash as string,
       sourceFreshness: meta.ordering?.source_freshness as string,
     },
-    actions: meta.actions as NodeAction[] || [],
+    actions: Array.isArray(meta.actions) ? meta.actions : [],
     edges,
     title,
     content,
@@ -360,40 +371,41 @@ function parseYaml(yaml: string): Record<string, unknown> {
     const trimmedValue = value.trim();
 
     if (trimmedValue === '' || trimmedValue === '|' || trimmedValue === '>') {
-      // Nested object or multiline
-      const nested: Record<string, unknown> = {};
+      // Could be nested object OR array with items on next lines
       i++;
-      while (i < lines.length) {
-        const nextLine = lines[i];
-        if (!nextLine.trim()) {
+      // Peek at next line to determine if it's an array or object
+      if (i < lines.length && lines[i].trim().startsWith('-')) {
+        // Array with items
+        const arr: unknown[] = [];
+        while (i < lines.length && lines[i].trim().startsWith('-')) {
+          const itemValue = lines[i].trim().slice(1).trim();
+          arr.push(parseValue(itemValue));
           i++;
-          continue;
         }
-        const nextMatch = nextLine.match(/^(\s*)([^:]+):\s*(.*)$/);
-        if (!nextMatch || nextMatch[1].length / 2 <= indentLevel) {
-          break;
+        result[key.trim()] = arr;
+      } else {
+        // Nested object
+        const nested: Record<string, unknown> = {};
+        while (i < lines.length) {
+          const nextLine = lines[i];
+          if (!nextLine.trim()) {
+            i++;
+            continue;
+          }
+          const nextMatch = nextLine.match(/^(\s*)([^:]+):\s*(.*)$/);
+          if (!nextMatch || nextMatch[1].length / 2 <= indentLevel) {
+            break;
+          }
+          const [, , nestedKey, nestedValue] = nextMatch;
+          nested[nestedKey.trim()] = parseValue(nestedValue.trim());
+          i++;
         }
-        const [, , nestedKey, nestedValue] = nextMatch;
-        nested[nestedKey.trim()] = parseValue(nestedValue.trim());
-        i++;
+        result[key.trim()] = nested;
       }
-      result[key.trim()] = nested;
     } else if (trimmedValue.startsWith('[')) {
       // Inline array
       result[key.trim()] = JSON.parse(trimmedValue);
       i++;
-    } else if (trimmedValue.startsWith('-')) {
-      // Array with items on next lines
-      const arr: unknown[] = [];
-      if (trimmedValue !== '-') {
-        arr.push(parseValue(trimmedValue.slice(1).trim()));
-      }
-      i++;
-      while (i < lines.length && lines[i].trim().startsWith('-')) {
-        arr.push(parseValue(lines[i].trim().slice(1).trim()));
-        i++;
-      }
-      result[key.trim()] = arr;
     } else {
       result[key.trim()] = parseValue(trimmedValue);
       i++;
@@ -413,6 +425,13 @@ function parseValue(value: string): unknown {
     return JSON.parse(value);
   }
   if (value.startsWith('[')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+  if (value.startsWith('{')) {
     try {
       return JSON.parse(value);
     } catch {
