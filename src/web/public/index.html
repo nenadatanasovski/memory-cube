@@ -1779,13 +1779,13 @@
 
         if (!res.ok) {
           const result = await res.json();
-          alert('Error: ' + (result.error || 'Unknown error'));
+          toast('Error: ' + (result.error || 'Unknown error'), 'error');
           return;
         }
 
         loadGraph();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast('Error: ' + err.message, 'error');
       }
     }
 
@@ -1963,7 +1963,7 @@
         const result = await res.json();
         
         if (!res.ok) {
-          alert('Error: ' + (result.error || 'Unknown error'));
+          toast('Error: ' + (result.error || 'Unknown error'), 'error');
           return;
         }
 
@@ -1981,7 +1981,7 @@
           showNodeDetail(id);
         }
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast('Error: ' + err.message, 'error');
       }
     }
 
@@ -2008,7 +2008,7 @@
 
         if (!res.ok) {
           const result = await res.json();
-          alert('Error: ' + (result.error || 'Unknown error'));
+          toast('Error: ' + (result.error || 'Unknown error'), 'error');
           return;
         }
 
@@ -2031,7 +2031,7 @@
         closeDetail();
         loadGraph();
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast('Error: ' + err.message, 'error');
       }
     }
 
@@ -2054,7 +2054,7 @@
           
         document.getElementById('edge-modal-overlay').classList.add('active');
       } catch (err) {
-        alert('Error loading nodes: ' + err.message);
+        toast('Error loading nodes: ' + err.message, 'error');
       }
     }
 
@@ -2076,7 +2076,7 @@
 
         if (!res.ok) {
           const result = await res.json();
-          alert('Error: ' + (result.error || 'Unknown error'));
+          toast('Error: ' + (result.error || 'Unknown error'), 'error');
           return;
         }
 
@@ -2086,7 +2086,7 @@
         loadGraph();
         showNodeDetail(currentNodeId);
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast('Error: ' + err.message, 'error');
       }
     }
 
@@ -2109,7 +2109,7 @@
         const result = await res.json();
         
         if (!res.ok) {
-          alert('Error: ' + (result.error || 'Unknown error'));
+          toast('Error: ' + (result.error || 'Unknown error'), 'error');
           return;
         }
 
@@ -2120,7 +2120,7 @@
         loadGraph();
         showNodeDetail(currentNodeId);
       } catch (err) {
-        alert('Error: ' + err.message);
+        toast('Error: ' + err.message, 'error');
       }
     }
 
@@ -2150,7 +2150,7 @@
         const data = JSON.parse(text);
         
         if (!data.nodes || !Array.isArray(data.nodes)) {
-          alert('Invalid format: expected { nodes: [...] }');
+          toast('Invalid format: expected { nodes: [...] }', 'error');
           return;
         }
 
@@ -2184,7 +2184,7 @@
         loadGraph();
         
       } catch (err) {
-        alert('Failed to parse JSON: ' + err.message);
+        toast('Failed to parse JSON: ' + err.message, 'error');
       }
       
       // Reset file input
