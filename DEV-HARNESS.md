@@ -160,6 +160,19 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - Commits: `15c2a56`, `4931904`, `0f84c0d`
 - **Total:** 13 commits since Phase 6 "complete"
 
+### 2026-02-02 22:36 AEDT — Phase 7: GitHub Integration ✅
+- Created `src/integrations/github.ts` (400+ lines)
+- CLI commands: github-import, github-export, github-prs, github-sync-status
+- API endpoints: POST /api/github/import, POST /api/github/export
+- Features:
+  - Import issues as cube nodes
+  - Export nodes as GitHub issues
+  - Import PRs and auto-link to issues
+  - Bidirectional status sync (complete ↔ closed)
+  - Label-to-type mapping
+- Requires: `gh auth login`
+- Commit: `327961d`
+
 ---
 
 ## Commands
