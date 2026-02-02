@@ -110,7 +110,7 @@ export class WebServer {
   /**
    * Handle API requests
    */
-  private async handleApi(path: string, url: URL, _req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async handleApi(path: string, url: URL, req: IncomingMessage, res: ServerResponse): Promise<void> {
     res.setHeader('Content-Type', 'application/json');
 
     switch (path) {
@@ -123,7 +123,15 @@ export class WebServer {
         break;
 
       case '/api/node':
-        await this.handleNode(url, res);
+        if (req.method === 'POST') {
+          await this.handleCreateNode(req, res);
+        } else if (req.method === 'PUT') {
+          await this.handleUpdateNode(req, res);
+        } else if (req.method === 'DELETE') {
+          await this.handleDeleteNode(url, res);
+        } else {
+          await this.handleNode(url, res);
+        }
         break;
 
       case '/api/stats':
@@ -138,6 +146,112 @@ export class WebServer {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not found' }));
     }
+  }
+
+  /**
+   * Parse JSON body from request
+   */
+  private parseBody(req: IncomingMessage): Promise<any> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          resolve(body ? JSON.parse(body) : {});
+        } catch (e) {
+          reject(new Error('Invalid JSON'));
+        }
+      });
+      req.on('error', reject);
+    });
+  }
+
+  /**
+   * Create a new node
+   */
+  private async handleCreateNode(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const data = await this.parseBody(req);
+      
+      if (!data.type || !data.title) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required fields: type, title' }));
+        return;
+      }
+
+      const result = this.cube.create({
+        type: data.type,
+        title: data.title,
+        content: data.content || '',
+        status: data.status || 'pending',
+        priority: data.priority || 'normal',
+        tags: data.tags || [],
+      });
+
+      if (!result.success) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: result.error }));
+        return;
+      }
+
+      res.writeHead(201);
+      res.end(JSON.stringify({ node: result.data }));
+    } catch (error: any) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  /**
+   * Update an existing node
+   */
+  private async handleUpdateNode(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const data = await this.parseBody(req);
+      
+      if (!data.id) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Missing required field: id' }));
+        return;
+      }
+
+      const result = this.cube.update(data.id, data);
+
+      if (!result.success) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: result.error }));
+        return;
+      }
+
+      res.writeHead(200);
+      res.end(JSON.stringify({ node: result.data }));
+    } catch (error: any) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  /**
+   * Delete a node
+   */
+  private async handleDeleteNode(url: URL, res: ServerResponse): Promise<void> {
+    const id = url.searchParams.get('id');
+    if (!id) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Missing id parameter' }));
+      return;
+    }
+
+    const result = this.cube.delete(id);
+
+    if (!result.success) {
+      res.writeHead(404);
+      res.end(JSON.stringify({ error: result.error }));
+      return;
+    }
+
+    res.writeHead(200);
+    res.end(JSON.stringify({ success: true }));
   }
 
   /**

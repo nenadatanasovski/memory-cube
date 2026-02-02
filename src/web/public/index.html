@@ -404,6 +404,118 @@
       margin-left: 0;
     }
 
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: #16213e;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      padding: 16px;
+      background: #0f3460;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+    }
+
+    .modal-form {
+      padding: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #0f3460;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .detail-actions {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #0f3460;
+      display: flex;
+      gap: 8px;
+    }
+
     /* Type colors */
     .type-task { background: #e94560; }
     .type-doc { background: #4ecdc4; }
@@ -477,6 +589,9 @@
       <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
       <button class="btn btn-secondary" onclick="exportPNG()">🖼️ PNG</button>
 
+      <h2>Actions</h2>
+      <button class="btn" onclick="showCreateModal()">+ New Node</button>
+
       <div class="legend">
         <h2>Node Types</h2>
         <div class="legend-item"><span class="legend-color type-task"></span> Task</div>
@@ -513,6 +628,7 @@
       <!-- Keyboard shortcuts help -->
       <div class="shortcuts-help" id="shortcuts-help">
         <span class="shortcut-key">/</span> Search
+        <span class="shortcut-key">n</span> New node
         <span class="shortcut-key">+</span> Zoom in
         <span class="shortcut-key">-</span> Zoom out
         <span class="shortcut-key">0</span> Fit
@@ -530,6 +646,83 @@
           <div id="detail-tags"></div>
           <div class="detail-edges" id="detail-edges"></div>
           <div class="detail-body" id="detail-body"></div>
+          <div class="detail-actions">
+            <button class="btn btn-secondary" onclick="editCurrentNode()">✏️ Edit</button>
+            <button class="btn btn-danger" onclick="deleteCurrentNode()">🗑️ Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Modal -->
+      <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+          <div class="modal-header">
+            <h3 id="modal-title">New Node</h3>
+            <button class="detail-close" onclick="closeModal()">×</button>
+          </div>
+          <form class="modal-form" id="node-form" onsubmit="submitNodeForm(event)">
+            <input type="hidden" id="form-id">
+            
+            <div class="form-group">
+              <label for="form-title">Title *</label>
+              <input type="text" id="form-title" required placeholder="Node title...">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="form-type">Type *</label>
+                <select id="form-type" required>
+                  <option value="task">Task</option>
+                  <option value="doc">Doc</option>
+                  <option value="code">Code</option>
+                  <option value="decision">Decision</option>
+                  <option value="ideation">Ideation</option>
+                  <option value="brainfart">Brainfart</option>
+                  <option value="research">Research</option>
+                  <option value="conversation">Conversation</option>
+                  <option value="concept">Concept</option>
+                  <option value="event">Event</option>
+                  <option value="agent">Agent</option>
+                  <option value="project">Project</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="form-status">Status</label>
+                <select id="form-status">
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="complete">Complete</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="form-priority">Priority</label>
+                <select id="form-priority">
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="form-tags">Tags (comma-separated)</label>
+              <input type="text" id="form-tags" placeholder="tag1, tag2, tag3">
+            </div>
+
+            <div class="form-group">
+              <label for="form-content">Content</label>
+              <textarea id="form-content" rows="6" placeholder="Node content (markdown supported)..."></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+              <button type="submit" class="btn">Save Node</button>
+            </div>
+          </form>
         </div>
       </div>
     </main>
@@ -768,6 +961,7 @@
 
     // Show node details
     async function showNodeDetail(nodeId) {
+      currentNodeId = nodeId;
       try {
         const res = await fetch(`/api/node?id=${encodeURIComponent(nodeId)}`);
         const data = await res.json();
@@ -824,6 +1018,7 @@
     // Close detail panel
     function closeDetail() {
       document.getElementById('detail-panel').classList.remove('active');
+      currentNodeId = null;
     }
 
     // Reset filters
@@ -945,8 +1140,109 @@
             loadGraph();
           }
           break;
+        case 'n':
+          e.preventDefault();
+          showCreateModal();
+          break;
       }
     });
+
+    // Current node being viewed (for edit/delete)
+    let currentNodeId = null;
+
+    // Modal functions
+    function showCreateModal() {
+      document.getElementById('modal-title').textContent = 'New Node';
+      document.getElementById('form-id').value = '';
+      document.getElementById('node-form').reset();
+      document.getElementById('modal-overlay').classList.add('active');
+      document.getElementById('form-title').focus();
+    }
+
+    function showEditModal(node) {
+      document.getElementById('modal-title').textContent = 'Edit Node';
+      document.getElementById('form-id').value = node.id;
+      document.getElementById('form-title').value = node.title;
+      document.getElementById('form-type').value = node.type;
+      document.getElementById('form-status').value = node.status;
+      document.getElementById('form-priority').value = node.priority;
+      document.getElementById('form-tags').value = (node.tags || []).join(', ');
+      document.getElementById('form-content').value = node.content || '';
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('active');
+    }
+
+    async function submitNodeForm(e) {
+      e.preventDefault();
+      
+      const id = document.getElementById('form-id').value;
+      const data = {
+        title: document.getElementById('form-title').value,
+        type: document.getElementById('form-type').value,
+        status: document.getElementById('form-status').value,
+        priority: document.getElementById('form-priority').value,
+        tags: document.getElementById('form-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+        content: document.getElementById('form-content').value,
+      };
+
+      try {
+        const isEdit = !!id;
+        const res = await fetch('/api/node', {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(isEdit ? { id, ...data } : data),
+        });
+
+        const result = await res.json();
+        
+        if (!res.ok) {
+          alert('Error: ' + (result.error || 'Unknown error'));
+          return;
+        }
+
+        closeModal();
+        loadGraph();
+        
+        if (isEdit && currentNodeId === id) {
+          showNodeDetail(id);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function editCurrentNode() {
+      if (!currentNodeId) return;
+      fetch(`/api/node?id=${encodeURIComponent(currentNodeId)}`)
+        .then(r => r.json())
+        .then(data => showEditModal(data.node))
+        .catch(err => alert('Error: ' + err.message));
+    }
+
+    async function deleteCurrentNode() {
+      if (!currentNodeId) return;
+      if (!confirm('Delete this node? This cannot be undone.')) return;
+
+      try {
+        const res = await fetch(`/api/node?id=${encodeURIComponent(currentNodeId)}`, {
+          method: 'DELETE',
+        });
+
+        if (!res.ok) {
+          const result = await res.json();
+          alert('Error: ' + (result.error || 'Unknown error'));
+          return;
+        }
+
+        closeDetail();
+        loadGraph();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
 
     // Export functions
     function exportJSON() {
