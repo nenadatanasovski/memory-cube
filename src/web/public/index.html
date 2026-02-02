@@ -1534,7 +1534,7 @@
     // Active type filters (empty = all)
     let activeTypes = new Set();
 
-    // Load type options as chips
+    // Load type options as chips with counts
     async function loadTypes() {
       const container = document.getElementById('type-chips');
       
@@ -1542,13 +1542,26 @@
       container.innerHTML = Array(6).fill('<span class="skeleton skeleton-chip"></span>').join('');
       
       try {
-        const res = await fetch('/api/types');
-        const data = await res.json();
+        // Fetch types and stats in parallel
+        const [typesRes, statsRes] = await Promise.all([
+          fetch('/api/types'),
+          fetch('/api/stats')
+        ]);
+        const typesData = await typesRes.json();
+        const statsData = await statsRes.json();
+        
+        // Build count map
+        const counts = {};
+        if (statsData.byType) {
+          Object.entries(statsData.byType).forEach(([type, count]) => {
+            counts[type] = count;
+          });
+        }
         
         container.innerHTML = `
           <span class="type-chip all-types active" onclick="toggleAllTypes()">All</span>
-          ${data.types.map(t => `
-            <span class="type-chip type-${t}" onclick="toggleTypeChip('${t}')" data-type="${t}">${t}</span>
+          ${typesData.types.map(t => `
+            <span class="type-chip type-${t}" onclick="toggleTypeChip('${t}')" data-type="${t}">${t}${counts[t] ? ` (${counts[t]})` : ''}</span>
           `).join('')}
         `;
       } catch (err) {
