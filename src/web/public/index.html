@@ -365,6 +365,35 @@
       color: #888;
     }
 
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #1a1a2e 25%, #0f3460 50%, #1a1a2e 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-stat {
+      height: 60px;
+    }
+
+    .skeleton-chip {
+      height: 24px;
+      width: 60px;
+      display: inline-block;
+      margin: 2px;
+    }
+
+    .skeleton-list-item {
+      height: 40px;
+      margin-bottom: 8px;
+    }
+
     /* Empty state */
     .empty-state {
       position: absolute;
@@ -1113,6 +1142,10 @@
     // Load graph data
     async function loadGraph() {
       document.getElementById('loading').style.display = 'block';
+      
+      // Show skeleton stats
+      document.getElementById('stat-nodes').innerHTML = '<span class="skeleton" style="width:30px;height:24px;display:inline-block"></span>';
+      document.getElementById('stat-edges').innerHTML = '<span class="skeleton" style="width:30px;height:24px;display:inline-block"></span>';
 
       const params = new URLSearchParams();
       
@@ -1242,11 +1275,15 @@
 
     // Load type options as chips
     async function loadTypes() {
+      const container = document.getElementById('type-chips');
+      
+      // Show skeleton
+      container.innerHTML = Array(6).fill('<span class="skeleton skeleton-chip"></span>').join('');
+      
       try {
         const res = await fetch('/api/types');
         const data = await res.json();
         
-        const container = document.getElementById('type-chips');
         container.innerHTML = `
           <span class="type-chip all-types active" onclick="toggleAllTypes()">All</span>
           ${data.types.map(t => `
@@ -1255,6 +1292,7 @@
         `;
       } catch (err) {
         console.error('Failed to load types:', err);
+        container.innerHTML = '<span style="color:#888">Failed to load</span>';
       }
     }
 
