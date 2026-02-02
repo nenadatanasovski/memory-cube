@@ -1209,6 +1209,17 @@
             selector: 'edge.implements',
             style: { 'line-color': '#4ecdc4', 'target-arrow-color': '#4ecdc4' }
           },
+          // Drag-link source
+          {
+            selector: 'node.drag-link-source',
+            style: {
+              'border-width': 4,
+              'border-color': '#00ff00',
+              'border-style': 'dashed',
+              'overlay-color': '#00ff00',
+              'overlay-opacity': 0.2,
+            }
+          },
           // Multi-select
           {
             selector: 'node.selected-multi',
@@ -1256,6 +1267,48 @@
           cy.nodes().removeClass('selected-multi');
           showNodeDetail(nodeId);
           updateSelectionCount();
+        }
+      });
+
+      // Drag-to-link: hold Alt and drag from one node to another
+      let dragLinkSource = null;
+      let dragLine = null;
+
+      cy.on('grab', 'node', (evt) => {
+        if (evt.originalEvent.altKey) {
+          dragLinkSource = evt.target;
+          evt.target.ungrabify(); // Prevent actual drag
+          // Visual feedback
+          dragLinkSource.addClass('drag-link-source');
+        }
+      });
+
+      cy.on('mousemove', (evt) => {
+        if (dragLinkSource && evt.position) {
+          // Could add a visual line here in future
+        }
+      });
+
+      cy.on('tap', 'node', (evt) => {
+        if (dragLinkSource && evt.target !== dragLinkSource) {
+          // Complete the link
+          const from = dragLinkSource.id();
+          const to = evt.target.id();
+          dragLinkSource.removeClass('drag-link-source');
+          dragLinkSource.grabify();
+          dragLinkSource = null;
+          
+          // Show edge type picker
+          showQuickLinkModal(from, to);
+        }
+      });
+
+      cy.on('tap', (evt) => {
+        // Cancel drag-link if clicking on background
+        if (evt.target === cy && dragLinkSource) {
+          dragLinkSource.removeClass('drag-link-source');
+          dragLinkSource.grabify();
+          dragLinkSource = null;
         }
       });
 
@@ -2060,6 +2113,61 @@
 
     function closeEdgeModal() {
       document.getElementById('edge-modal-overlay').classList.remove('active');
+    }
+
+    // Quick link modal (for drag-to-link)
+    function showQuickLinkModal(from, to) {
+      const edgeTypes = ['depends-on', 'blocks', 'implements', 'documents', 'relates-to', 'spawns', 'part-of'];
+      const fromNode = cy.getElementById(from);
+      const toNode = cy.getElementById(to);
+      
+      const buttons = edgeTypes.map(t => 
+        `<button class="btn btn-secondary" onclick="quickLink('${from}', '${t}', '${to}')">${t}</button>`
+      ).join(' ');
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay active';
+      modal.id = 'quick-link-modal';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+          <h2>Link Nodes</h2>
+          <p style="margin-bottom: 12px;">
+            <strong>${fromNode.data('label')}</strong> → <strong>${toNode.data('label')}</strong>
+          </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${buttons}
+          </div>
+          <button class="btn" style="margin-top: 16px;" onclick="closeQuickLinkModal()">Cancel</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function closeQuickLinkModal() {
+      const modal = document.getElementById('quick-link-modal');
+      if (modal) modal.remove();
+    }
+
+    async function quickLink(from, type, to) {
+      try {
+        const res = await fetch('/api/edge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, type, to }),
+        });
+        
+        if (res.ok) {
+          history.push({ type: 'link', edge: { from, type, to } });
+          toast(`Linked: ${type}`, 'success');
+          loadGraph();
+        } else {
+          const result = await res.json();
+          toast('Error: ' + (result.error || 'Failed'), 'error');
+        }
+      } catch (err) {
+        toast('Error: ' + err.message, 'error');
+      }
+      closeQuickLinkModal();
     }
 
     async function deleteEdge(from, type, to) {
