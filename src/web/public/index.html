@@ -969,6 +969,7 @@
           <div class="detail-actions">
             <button class="btn btn-secondary" onclick="toggleStar()" id="star-btn">⭐ Star</button>
             <button class="btn btn-secondary" onclick="editCurrentNode()">✏️ Edit</button>
+            <button class="btn btn-secondary" onclick="duplicateCurrentNode()">📋 Clone</button>
             <button class="btn btn-secondary" onclick="showAddEdgeModal()">🔗 Link</button>
             <button class="btn btn-danger" onclick="deleteCurrentNode()">🗑️ Delete</button>
           </div>
@@ -2290,6 +2291,43 @@
         .then(r => r.json())
         .then(data => showEditModal(data.node))
         .catch(err => alert('Error: ' + err.message));
+    }
+
+    async function duplicateCurrentNode() {
+      if (!currentNodeId) return;
+
+      try {
+        // Fetch current node data
+        const res = await fetch(`/api/node?id=${encodeURIComponent(currentNodeId)}`);
+        const data = await res.json();
+        const node = data.node;
+
+        // Create duplicate with modified title
+        const createRes = await fetch('/api/node', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: node.type,
+            title: `${node.title} (copy)`,
+            content: node.content,
+            status: 'pending', // Reset status
+            priority: node.priority,
+            tags: node.tags,
+          }),
+        });
+
+        const result = await createRes.json();
+        if (result.node) {
+          history.push({ type: 'create', nodeId: result.node.id, data: result.node });
+          toast('Node duplicated', 'success');
+          loadGraph();
+          showNodeDetail(result.node.id);
+        } else {
+          toast('Error: ' + (result.error || 'Failed to duplicate'), 'error');
+        }
+      } catch (err) {
+        toast('Error: ' + err.message, 'error');
+      }
     }
 
     async function deleteCurrentNode() {
