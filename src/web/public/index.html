@@ -106,6 +106,38 @@
       border-color: #e94560;
     }
 
+    /* Type chips filter */
+    .type-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .type-chip {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      opacity: 0.5;
+      transition: all 0.15s;
+      text-transform: capitalize;
+    }
+
+    .type-chip:hover {
+      opacity: 0.8;
+    }
+
+    .type-chip.active {
+      opacity: 1;
+      border-color: #fff;
+    }
+
+    .type-chip.all-types {
+      background: #0f3460;
+      color: #eee;
+    }
+
     .btn {
       display: inline-block;
       padding: 8px 16px;
@@ -284,6 +316,94 @@
       color: #888;
     }
 
+    /* Empty state */
+    .empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      display: none;
+    }
+
+    .empty-state.visible {
+      display: block;
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .empty-text {
+      color: #888;
+      margin-bottom: 16px;
+    }
+
+    /* Zoom controls */
+    .zoom-controls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 100;
+    }
+
+    .zoom-btn {
+      width: 36px;
+      height: 36px;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      color: #eee;
+      font-size: 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .zoom-btn:hover {
+      background: #0f3460;
+      border-color: #e94560;
+    }
+
+    /* Shortcuts help */
+    .shortcuts-help {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(22, 33, 62, 0.9);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #888;
+      display: none;
+      z-index: 100;
+    }
+
+    .shortcuts-help.visible {
+      display: block;
+    }
+
+    .shortcut-key {
+      display: inline-block;
+      background: #0f3460;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: #eee;
+      font-family: monospace;
+      margin-right: 4px;
+      margin-left: 8px;
+    }
+
+    .shortcut-key:first-child {
+      margin-left: 0;
+    }
+
     /* Type colors */
     .type-task { background: #e94560; }
     .type-doc { background: #4ecdc4; }
@@ -319,9 +439,9 @@
       
       <div class="filter-group">
         <label>Type</label>
-        <select id="filter-type" multiple>
-          <option value="">All Types</option>
-        </select>
+        <div class="type-chips" id="type-chips">
+          <!-- Populated by JS -->
+        </div>
       </div>
 
       <div class="filter-group">
@@ -362,12 +482,39 @@
         <div class="legend-item"><span class="legend-color type-ideation"></span> Ideation</div>
         <div class="legend-item"><span class="legend-color type-brainfart"></span> Brainfart</div>
         <div class="legend-item"><span class="legend-color type-research"></span> Research</div>
+        <div class="legend-item"><span class="legend-color type-conversation"></span> Conversation</div>
+        <div class="legend-item"><span class="legend-color type-concept"></span> Concept</div>
+        <div class="legend-item"><span class="legend-color type-event"></span> Event</div>
+        <div class="legend-item"><span class="legend-color type-agent"></span> Agent</div>
+        <div class="legend-item"><span class="legend-color type-project"></span> Project</div>
       </div>
     </aside>
 
     <main class="graph-container">
       <div id="cy"></div>
       <div class="loading" id="loading">Loading graph...</div>
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-text">No nodes match your filters</div>
+        <button class="btn btn-secondary" onclick="resetFilters()">Clear Filters</button>
+      </div>
+      
+      <!-- Zoom controls -->
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomIn()" title="Zoom In (+)">+</button>
+        <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out (-)">−</button>
+        <button class="zoom-btn" onclick="fitGraph()" title="Fit to View (0)">⊡</button>
+      </div>
+
+      <!-- Keyboard shortcuts help -->
+      <div class="shortcuts-help" id="shortcuts-help">
+        <span class="shortcut-key">/</span> Search
+        <span class="shortcut-key">+</span> Zoom in
+        <span class="shortcut-key">-</span> Zoom out
+        <span class="shortcut-key">0</span> Fit
+        <span class="shortcut-key">Esc</span> Close
+        <span class="shortcut-key">?</span> Toggle help
+      </div>
       
       <div class="detail-panel" id="detail-panel">
         <div class="detail-header">
@@ -469,6 +616,19 @@
             selector: 'edge.implements',
             style: { 'line-color': '#4ecdc4', 'target-arrow-color': '#4ecdc4' }
           },
+          // Hover states
+          {
+            selector: '.dimmed',
+            style: { 'opacity': 0.15 }
+          },
+          {
+            selector: 'node.highlighted',
+            style: { 
+              'border-width': 4,
+              'border-color': '#fff',
+              'z-index': 999
+            }
+          },
         ],
         layout: {
           name: 'cose',
@@ -489,6 +649,20 @@
           closeDetail();
         }
       });
+
+      // Hover highlight for connected nodes
+      cy.on('mouseover', 'node', (evt) => {
+        const node = evt.target;
+        const connected = node.neighborhood().add(node);
+        
+        cy.elements().addClass('dimmed');
+        connected.removeClass('dimmed');
+        node.addClass('highlighted');
+      });
+
+      cy.on('mouseout', 'node', () => {
+        cy.elements().removeClass('dimmed').removeClass('highlighted');
+      });
     }
 
     // Load graph data
@@ -497,8 +671,10 @@
 
       const params = new URLSearchParams();
       
-      const type = document.getElementById('filter-type').value;
-      if (type) params.set('type', type);
+      // Use active types from chips
+      if (activeTypes.size > 0) {
+        params.set('type', Array.from(activeTypes).join(','));
+      }
       
       const status = document.getElementById('filter-status').value;
       if (status) params.set('status', status);
@@ -527,6 +703,13 @@
 
         document.getElementById('stat-nodes').textContent = data.nodes.length;
         document.getElementById('stat-edges').textContent = data.edges.length;
+
+        // Show/hide empty state
+        if (data.nodes.length === 0) {
+          document.getElementById('empty-state').classList.add('visible');
+        } else {
+          document.getElementById('empty-state').classList.remove('visible');
+        }
       } catch (err) {
         console.error('Failed to load graph:', err);
       } finally {
@@ -596,26 +779,125 @@
 
     // Reset filters
     function resetFilters() {
-      document.getElementById('filter-type').value = '';
+      toggleAllTypes(); // Reset type chips
       document.getElementById('filter-status').value = '';
       document.getElementById('filter-validity').value = '';
       document.getElementById('filter-search').value = '';
       loadGraph();
     }
 
-    // Load type options
+    // Active type filters (empty = all)
+    let activeTypes = new Set();
+
+    // Load type options as chips
     async function loadTypes() {
       try {
         const res = await fetch('/api/types');
         const data = await res.json();
         
-        const select = document.getElementById('filter-type');
-        select.innerHTML = '<option value="">All Types</option>' +
-          data.types.map(t => `<option value="${t}">${t}</option>`).join('');
+        const container = document.getElementById('type-chips');
+        container.innerHTML = `
+          <span class="type-chip all-types active" onclick="toggleAllTypes()">All</span>
+          ${data.types.map(t => `
+            <span class="type-chip type-${t}" onclick="toggleTypeChip('${t}')" data-type="${t}">${t}</span>
+          `).join('')}
+        `;
       } catch (err) {
         console.error('Failed to load types:', err);
       }
     }
+
+    // Toggle a specific type chip
+    function toggleTypeChip(type) {
+      const chip = document.querySelector(`.type-chip[data-type="${type}"]`);
+      const allChip = document.querySelector('.type-chip.all-types');
+      
+      if (activeTypes.has(type)) {
+        activeTypes.delete(type);
+        chip.classList.remove('active');
+      } else {
+        activeTypes.add(type);
+        chip.classList.add('active');
+      }
+
+      // Update "All" chip state
+      if (activeTypes.size === 0) {
+        allChip.classList.add('active');
+      } else {
+        allChip.classList.remove('active');
+      }
+    }
+
+    // Toggle all types (clear selection)
+    function toggleAllTypes() {
+      activeTypes.clear();
+      document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector('.type-chip.all-types').classList.add('active');
+    }
+
+    // Zoom functions
+    function zoomIn() {
+      cy.zoom(cy.zoom() * 1.2);
+      cy.center();
+    }
+
+    function zoomOut() {
+      cy.zoom(cy.zoom() / 1.2);
+      cy.center();
+    }
+
+    function fitGraph() {
+      cy.fit(cy.elements(), 50);
+    }
+
+    // Toggle shortcuts help
+    function toggleHelp() {
+      document.getElementById('shortcuts-help').classList.toggle('visible');
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Don't trigger if typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+        if (e.key === 'Escape') {
+          e.target.blur();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case '/':
+          e.preventDefault();
+          document.getElementById('filter-search').focus();
+          break;
+        case '+':
+        case '=':
+          e.preventDefault();
+          zoomIn();
+          break;
+        case '-':
+          e.preventDefault();
+          zoomOut();
+          break;
+        case '0':
+          e.preventDefault();
+          fitGraph();
+          break;
+        case 'Escape':
+          closeDetail();
+          break;
+        case '?':
+          e.preventDefault();
+          toggleHelp();
+          break;
+        case 'r':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            loadGraph();
+          }
+          break;
+      }
+    });
 
     // Initialize
     initCytoscape();
