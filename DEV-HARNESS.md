@@ -34,7 +34,7 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - [x] Legend matches all 12 defined types
 - [x] Edge labels on hover
 - [x] Status visual indicators (border colors: complete=teal, blocked=dashed red, active=yellow)
-- [ ] Better node labels (truncate long names)
+- [x] Better node labels (truncate long names, expand on hover)
 - [x] Highlight connected nodes on hover
 
 ### Performance
@@ -122,7 +122,15 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - ✅ Added hover highlight for connected nodes
 - ✅ Added empty state when no nodes match filter
 - Committed: `36f4120`
-- **Next:** Edge labels on hover, status icons
+
+### 2026-02-02 22:08 AEDT
+- ✅ Edge labels show on hover
+- ✅ Status visual indicators (border colors)
+- ✅ Label truncation with expand on hover
+- Commits: `54a76b8`, `bde6eb5`
+- Messaged Ned on Telegram with progress update
+- **Status:** All P0/P1 issues fixed, most visual polish done
+- **Waiting:** Ned's input on next priorities
 
 ---
 
