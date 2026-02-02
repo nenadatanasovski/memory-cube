@@ -1948,6 +1948,7 @@
       const nextNode = nodes[nextIndex];
       showNodeDetail(nextNode.id());
       cy.animate({ center: { eles: nextNode }, duration: 200 });
+    }
 
     // Current node being viewed (for edit/delete)
     let currentNodeId = null;
@@ -1980,11 +1981,15 @@
         return;
       }
       
-      container.innerHTML = recentNodes.map(n => `
-        <div class="recent-item" onclick="showNodeDetail('${n.id}')" title="${n.id}">
-          ${n.title.substring(0, 25)}${n.title.length > 25 ? '...' : ''}
-        </div>
-      `).join('');
+      container.innerHTML = '';
+      recentNodes.forEach(n => {
+        const div = document.createElement('div');
+        div.className = 'recent-item';
+        div.title = n.id;
+        div.textContent = n.title.substring(0, 25) + (n.title.length > 25 ? '...' : '');
+        div.onclick = () => showNodeDetail(n.id);
+        container.appendChild(div);
+      });
     }
 
     function toggleStar() {
