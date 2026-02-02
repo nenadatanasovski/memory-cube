@@ -138,6 +138,41 @@
       color: #eee;
     }
 
+    /* Search results dropdown */
+    .search-results {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 4px;
+      border-radius: 4px;
+      background: #0f3460;
+      display: none;
+    }
+
+    .search-results.visible {
+      display: block;
+    }
+
+    .search-result {
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      border-bottom: 1px solid #1a1a2e;
+    }
+
+    .search-result:last-child {
+      border-bottom: none;
+    }
+
+    .search-result:hover {
+      background: #1a1a2e;
+    }
+
+    .search-result-type {
+      font-size: 10px;
+      color: #888;
+      margin-left: 8px;
+    }
+
     .btn {
       display: inline-block;
       padding: 8px 16px;
@@ -631,6 +666,7 @@
       <div class="filter-group">
         <label>Search</label>
         <input type="text" id="filter-search" placeholder="Search nodes...">
+        <div class="search-results" id="search-results"></div>
       </div>
 
       <button class="btn" onclick="loadGraph()">Apply Filters</button>
@@ -1541,9 +1577,65 @@
       };
     }
 
-    // Auto-apply search filter on typing
-    const debouncedSearch = debounce(() => loadGraph(), 300);
+    // Auto-apply search filter on typing + show results dropdown
+    const debouncedSearch = debounce(() => {
+      loadGraph();
+      showSearchResults();
+    }, 300);
     document.getElementById('filter-search').addEventListener('input', debouncedSearch);
+    
+    // Hide search results when clicking elsewhere
+    document.getElementById('filter-search').addEventListener('blur', () => {
+      setTimeout(() => {
+        document.getElementById('search-results').classList.remove('visible');
+      }, 200);
+    });
+
+    async function showSearchResults() {
+      const search = document.getElementById('filter-search').value.trim();
+      const resultsDiv = document.getElementById('search-results');
+      
+      if (!search) {
+        resultsDiv.classList.remove('visible');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/nodes?search=${encodeURIComponent(search)}&limit=10`);
+        const data = await res.json();
+        
+        if (data.nodes.length === 0) {
+          resultsDiv.innerHTML = '<div class="search-result" style="color:#888">No results</div>';
+        } else {
+          resultsDiv.innerHTML = data.nodes.map(n => `
+            <div class="search-result" onclick="focusNode('${n.id}')">
+              ${n.title}<span class="search-result-type">${n.type}</span>
+            </div>
+          `).join('');
+        }
+        
+        resultsDiv.classList.add('visible');
+      } catch (err) {
+        console.error('Search error:', err);
+      }
+    }
+
+    function focusNode(nodeId) {
+      document.getElementById('search-results').classList.remove('visible');
+      
+      const node = cy.getElementById(nodeId);
+      if (node.length > 0) {
+        cy.animate({
+          center: { eles: node },
+          zoom: 1.5
+        }, {
+          duration: 300
+        });
+        
+        node.select();
+        showNodeDetail(nodeId);
+      }
+    }
 
     // Initialize
     initCytoscape();
