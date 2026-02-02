@@ -704,6 +704,10 @@
 
       <h2>Actions</h2>
       <button class="btn" onclick="showCreateModal()">+ New Node</button>
+      <div style="margin-top: 8px;">
+        <button class="btn btn-secondary" id="undo-btn" onclick="history.undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+        <button class="btn btn-secondary" id="redo-btn" onclick="history.redo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+      </div>
 
       <div class="legend">
         <h2>Node Types</h2>
@@ -1351,11 +1355,145 @@
           e.preventDefault();
           showCreateModal();
           break;
+        case 'z':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            history.undo();
+          }
+          break;
+        case 'y':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            history.redo();
+          }
+          break;
       }
     });
 
     // Current node being viewed (for edit/delete)
     let currentNodeId = null;
+
+    // Undo/redo history
+    const history = {
+      past: [],
+      future: [],
+      maxSize: 50,
+      
+      push(action) {
+        this.past.push(action);
+        this.future = []; // Clear redo stack on new action
+        if (this.past.length > this.maxSize) this.past.shift();
+        this.updateButtons();
+      },
+      
+      canUndo() { return this.past.length > 0; },
+      canRedo() { return this.future.length > 0; },
+      
+      async undo() {
+        if (!this.canUndo()) return;
+        const action = this.past.pop();
+        this.future.push(action);
+        await this.revert(action);
+        this.updateButtons();
+      },
+      
+      async redo() {
+        if (!this.canRedo()) return;
+        const action = this.future.pop();
+        this.past.push(action);
+        await this.apply(action);
+        this.updateButtons();
+      },
+      
+      async revert(action) {
+        try {
+          switch (action.type) {
+            case 'create':
+              await fetch(`/api/node?id=${encodeURIComponent(action.nodeId)}`, { method: 'DELETE' });
+              break;
+            case 'delete':
+              await fetch('/api/node', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action.data)
+              });
+              break;
+            case 'update':
+              await fetch('/api/node', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: action.nodeId, ...action.oldData })
+              });
+              break;
+            case 'link':
+              await fetch('/api/edge', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action.edge)
+              });
+              break;
+            case 'unlink':
+              await fetch('/api/edge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action.edge)
+              });
+              break;
+          }
+          loadGraph();
+        } catch (err) {
+          console.error('Undo failed:', err);
+        }
+      },
+      
+      async apply(action) {
+        try {
+          switch (action.type) {
+            case 'create':
+              await fetch('/api/node', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action.data)
+              });
+              break;
+            case 'delete':
+              await fetch(`/api/node?id=${encodeURIComponent(action.nodeId)}`, { method: 'DELETE' });
+              break;
+            case 'update':
+              await fetch('/api/node', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: action.nodeId, ...action.newData })
+              });
+              break;
+            case 'link':
+              await fetch('/api/edge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action.edge)
+              });
+              break;
+            case 'unlink':
+              await fetch('/api/edge', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action.edge)
+              });
+              break;
+          }
+          loadGraph();
+        } catch (err) {
+          console.error('Redo failed:', err);
+        }
+      },
+      
+      updateButtons() {
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
+        if (undoBtn) undoBtn.disabled = !this.canUndo();
+        if (redoBtn) redoBtn.disabled = !this.canRedo();
+      }
+    };
 
     // Context menu actions
     function contextEdit() {
@@ -1435,6 +1573,24 @@
 
       try {
         const isEdit = !!id;
+        
+        // Get old data for undo if editing
+        let oldData = null;
+        if (isEdit) {
+          const oldRes = await fetch(`/api/node?id=${encodeURIComponent(id)}`);
+          const oldResult = await oldRes.json();
+          if (oldResult.node) {
+            oldData = {
+              title: oldResult.node.title,
+              type: oldResult.node.type,
+              status: oldResult.node.status,
+              priority: oldResult.node.priority,
+              tags: oldResult.node.tags,
+              content: oldResult.node.content,
+            };
+          }
+        }
+        
         const res = await fetch('/api/node', {
           method: isEdit ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1446,6 +1602,13 @@
         if (!res.ok) {
           alert('Error: ' + (result.error || 'Unknown error'));
           return;
+        }
+
+        // Record history
+        if (isEdit) {
+          history.push({ type: 'update', nodeId: id, oldData, newData: data });
+        } else {
+          history.push({ type: 'create', nodeId: result.node.id, data });
         }
 
         closeModal();
@@ -1469,9 +1632,13 @@
 
     async function deleteCurrentNode() {
       if (!currentNodeId) return;
-      if (!confirm('Delete this node? This cannot be undone.')) return;
+      if (!confirm('Delete this node? (You can undo with Ctrl+Z)')) return;
 
       try {
+        // Get node data for undo
+        const oldRes = await fetch(`/api/node?id=${encodeURIComponent(currentNodeId)}`);
+        const oldResult = await oldRes.json();
+        
         const res = await fetch(`/api/node?id=${encodeURIComponent(currentNodeId)}`, {
           method: 'DELETE',
         });
@@ -1480,6 +1647,22 @@
           const result = await res.json();
           alert('Error: ' + (result.error || 'Unknown error'));
           return;
+        }
+
+        // Record history
+        if (oldResult.node) {
+          history.push({ 
+            type: 'delete', 
+            nodeId: currentNodeId, 
+            data: {
+              type: oldResult.node.type,
+              title: oldResult.node.title,
+              content: oldResult.node.content,
+              status: oldResult.node.status,
+              priority: oldResult.node.priority,
+              tags: oldResult.node.tags,
+            }
+          });
         }
 
         closeDetail();
@@ -1517,13 +1700,15 @@
     }
 
     async function deleteEdge(from, type, to) {
-      if (!confirm(`Remove "${type}" relationship?`)) return;
+      if (!confirm(`Remove "${type}" relationship? (Ctrl+Z to undo)`)) return;
+
+      const edge = { from, type, to };
 
       try {
         const res = await fetch('/api/edge', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from, type, to }),
+          body: JSON.stringify(edge),
         });
 
         if (!res.ok) {
@@ -1531,6 +1716,9 @@
           alert('Error: ' + (result.error || 'Unknown error'));
           return;
         }
+
+        // Record history
+        history.push({ type: 'unlink', edge });
 
         loadGraph();
         showNodeDetail(currentNodeId);
@@ -1542,7 +1730,7 @@
     async function submitEdgeForm(e) {
       e.preventDefault();
       
-      const data = {
+      const edge = {
         from: document.getElementById('edge-from').value,
         type: document.getElementById('edge-type').value,
         to: document.getElementById('edge-to').value,
@@ -1552,7 +1740,7 @@
         const res = await fetch('/api/edge', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          body: JSON.stringify(edge),
         });
 
         const result = await res.json();
@@ -1561,6 +1749,9 @@
           alert('Error: ' + (result.error || 'Unknown error'));
           return;
         }
+
+        // Record history
+        history.push({ type: 'link', edge });
 
         closeEdgeModal();
         loadGraph();
