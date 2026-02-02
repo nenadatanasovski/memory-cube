@@ -446,7 +446,7 @@ export class WebServer {
           priority: node.priority,
           tags: node.tags,
         },
-        classes: [node.type, node.status, node.validity],
+        classes: [node.type, node.status, node.validity, node.priority],
       });
 
       // Add edges (only to nodes in the result set)

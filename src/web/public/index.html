@@ -1106,6 +1106,21 @@
             selector: `node.${type}`,
             style: { 'background-color': color }
           })),
+          // Priority styles (indicator dot)
+          {
+            selector: 'node.critical',
+            style: {
+              'border-width': 4,
+              'border-color': '#ff0000',
+            }
+          },
+          {
+            selector: 'node.high',
+            style: {
+              'border-width': 3,
+              'border-color': '#ff6b6b',
+            }
+          },
           // Status styles
           {
             selector: 'node.complete',
