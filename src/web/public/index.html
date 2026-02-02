@@ -911,7 +911,13 @@
       </div>
       <div id="bulk-actions" style="margin-top: 8px; display: none;">
         <span id="selection-count" style="font-size: 12px; color: #888;">0 selected</span>
-        <button class="btn btn-secondary" onclick="bulkComplete()">✓ Complete</button>
+        <select id="bulk-status" onchange="bulkSetStatus()">
+          <option value="">Set status...</option>
+          <option value="pending">Pending</option>
+          <option value="active">Active</option>
+          <option value="blocked">Blocked</option>
+          <option value="complete">Complete</option>
+        </select>
         <button class="btn btn-danger" onclick="bulkDelete()">🗑️ Delete</button>
         <button class="btn btn-secondary" onclick="clearSelection()">Clear</button>
       </div>
@@ -2140,24 +2146,31 @@
       updateSelectionCount();
     }
 
-    async function bulkComplete() {
-      const selected = cy.nodes('.selected-multi');
-      if (selected.length === 0) return;
+    async function bulkSetStatus() {
+      const select = document.getElementById('bulk-status');
+      const status = select.value;
+      if (!status) return;
       
-      if (!confirm(`Mark ${selected.length} nodes as complete?`)) return;
+      const selected = cy.nodes('.selected-multi');
+      if (selected.length === 0) {
+        select.value = '';
+        return;
+      }
 
       for (const node of selected) {
         try {
           await fetch('/api/node', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: node.id(), status: 'complete' }),
+            body: JSON.stringify({ id: node.id(), status }),
           });
         } catch (err) {
           console.error('Failed to update:', node.id(), err);
         }
       }
 
+      toast(`Set ${selected.length} nodes to ${status}`, 'success');
+      select.value = '';
       clearSelection();
       loadGraph();
     }

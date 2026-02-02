@@ -181,7 +181,18 @@ Ned said "this was meant to run all night" — activating autonomous mode.
 **22:59** ✅ Loading skeleton animations (119927d)
 **23:01** ✅ Example nodes for all 12 types + architecture doc (5e828f1)
 
-**Status:** Most features complete. 18 nodes in cube. Continuing...
+**23:28** ✅ Toast notifications for all errors (6553a87)
+**23:29** ✅ Alt+drag to link nodes (dfcc2cd)
+**23:30** ✅ Collapsible sidebar sections (f4405dd)
+**23:30** ✅ Keyboard navigation j/k/arrows (18ea438)
+**23:31** ✅ Type counts in filter chips (26608ce)
+**23:32** ✅ Time-based filters (c3f3c4f)
+**23:33** ✅ Star/favorite nodes (a1d5777)
+**23:35** ✅ Fullscreen mode (f036f04)
+**23:35** ✅ Duplicate/clone node (574376c)
+**23:35** ✅ Copy node ID to clipboard (e973775)
+
+**Status:** 48 commits. Continuing autonomous iteration...
 
 ---
 
