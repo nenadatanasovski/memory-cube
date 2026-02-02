@@ -85,6 +85,33 @@
       color: #888;
       margin: 16px 0 8px 0;
       letter-spacing: 1px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar h2::after {
+      content: '▼';
+      font-size: 8px;
+      transition: transform 0.2s;
+    }
+
+    .sidebar h2.collapsed::after {
+      transform: rotate(-90deg);
+    }
+
+    .collapsible {
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      max-height: 500px;
+      opacity: 1;
+    }
+
+    .collapsible.collapsed {
+      max-height: 0;
+      opacity: 0;
     }
 
     .stats {
@@ -2453,9 +2480,36 @@
       cy.on('add remove', debounce(updateMinimap, 100));
     }
 
+    // Make sidebar sections collapsible
+    function setupCollapsibleSections() {
+      document.querySelectorAll('.sidebar h2').forEach(h2 => {
+        // Wrap following elements in a collapsible div
+        const wrapper = document.createElement('div');
+        wrapper.className = 'collapsible';
+        
+        let el = h2.nextElementSibling;
+        const toWrap = [];
+        while (el && el.tagName !== 'H2' && el.tagName !== 'H1') {
+          toWrap.push(el);
+          el = el.nextElementSibling;
+        }
+        
+        if (toWrap.length > 0) {
+          h2.after(wrapper);
+          toWrap.forEach(e => wrapper.appendChild(e));
+        }
+        
+        h2.addEventListener('click', () => {
+          h2.classList.toggle('collapsed');
+          wrapper.classList.toggle('collapsed');
+        });
+      });
+    }
+
     // Initialize
     initCytoscape();
     setupMinimapUpdates();
+    setupCollapsibleSections();
     loadTypes();
     loadGraph();
   </script>
