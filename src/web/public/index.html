@@ -991,6 +991,7 @@
             <button class="btn btn-secondary" onclick="editCurrentNode()">✏️ Edit</button>
             <button class="btn btn-secondary" onclick="duplicateCurrentNode()">📋 Clone</button>
             <button class="btn btn-secondary" onclick="showAddEdgeModal()">🔗 Link</button>
+            <button class="btn btn-secondary" onclick="focusOnNode()">🎯 Focus</button>
             <button class="btn btn-danger" onclick="deleteCurrentNode()">🗑️ Delete</button>
           </div>
         </div>
@@ -1964,6 +1965,36 @@
       }).catch(err => {
         toast('Failed to copy', 'error');
       });
+    }
+
+    // Focus mode - show only the selected node and its neighbors
+    let focusMode = false;
+    let hiddenElements = [];
+
+    function focusOnNode() {
+      if (!currentNodeId || !cy) return;
+      
+      const node = cy.getElementById(currentNodeId);
+      if (!node) return;
+
+      if (focusMode) {
+        // Exit focus mode - restore hidden elements
+        hiddenElements.forEach(el => el.style('display', 'element'));
+        hiddenElements = [];
+        focusMode = false;
+        toast('Focus mode off', 'info', 1500);
+      } else {
+        // Enter focus mode - hide unconnected nodes
+        const connected = node.neighborhood().add(node);
+        const toHide = cy.elements().not(connected);
+        toHide.forEach(el => {
+          el.style('display', 'none');
+          hiddenElements.push(el);
+        });
+        focusMode = true;
+        cy.fit(connected, 50);
+        toast('Focus mode: showing connected nodes only', 'info');
+      }
     }
 
     // Undo/redo history
