@@ -580,6 +580,19 @@
               'target-arrow-shape': 'triangle',
               'curve-style': 'bezier',
               'arrow-scale': 0.8,
+              'label': 'data(type)',
+              'font-size': '9px',
+              'color': '#666',
+              'text-opacity': 0,
+              'text-rotation': 'autorotate',
+              'text-margin-y': -8,
+            }
+          },
+          {
+            selector: 'edge:active, edge.hover',
+            style: {
+              'text-opacity': 1,
+              'color': '#aaa',
             }
           },
           {
@@ -597,11 +610,25 @@
           // Status styles
           {
             selector: 'node.complete',
-            style: { 'opacity': 0.6 }
+            style: { 
+              'opacity': 0.7,
+              'border-color': '#4ecdc4',
+              'border-width': 3
+            }
           },
           {
             selector: 'node.blocked',
-            style: { 'border-style': 'dashed' }
+            style: { 
+              'border-style': 'dashed',
+              'border-color': '#e94560'
+            }
+          },
+          {
+            selector: 'node.active',
+            style: {
+              'border-color': '#ffe66d',
+              'border-width': 3
+            }
           },
           // Edge type colors
           {
@@ -658,10 +685,23 @@
         cy.elements().addClass('dimmed');
         connected.removeClass('dimmed');
         node.addClass('highlighted');
+        
+        // Show edge labels for connected edges
+        node.connectedEdges().addClass('hover');
       });
 
       cy.on('mouseout', 'node', () => {
         cy.elements().removeClass('dimmed').removeClass('highlighted');
+        cy.edges().removeClass('hover');
+      });
+
+      // Edge hover for label
+      cy.on('mouseover', 'edge', (evt) => {
+        evt.target.addClass('hover');
+      });
+
+      cy.on('mouseout', 'edge', (evt) => {
+        evt.target.removeClass('hover');
       });
     }
 

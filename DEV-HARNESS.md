@@ -116,7 +116,13 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - ✅ Fixed P0: Legend now shows all 12 node types
 - ✅ Fixed P1: Added keyboard shortcuts (/, +, -, 0, Esc, ?, r)
 - ✅ Fixed P1: Added zoom controls (bottom-right)
-- **Next:** Fix type filter UX (replace native multi-select with chips)
+
+### 2026-02-02 22:06 AEDT
+- ✅ Fixed P1: Type filter now uses chip-based UI
+- ✅ Added hover highlight for connected nodes
+- ✅ Added empty state when no nodes match filter
+- Committed: `36f4120`
+- **Next:** Edge labels on hover, status icons
 
 ---
 
