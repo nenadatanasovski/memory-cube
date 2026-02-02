@@ -389,6 +389,32 @@
       margin-bottom: 16px;
     }
 
+    /* Mini-map */
+    .minimap {
+      position: absolute;
+      bottom: 80px;
+      right: 20px;
+      width: 150px;
+      height: 100px;
+      background: rgba(22, 33, 62, 0.9);
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      overflow: hidden;
+      z-index: 100;
+    }
+
+    .minimap canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .minimap-viewport {
+      position: absolute;
+      border: 2px solid #e94560;
+      background: rgba(233, 69, 96, 0.1);
+      pointer-events: none;
+    }
+
     /* Zoom controls */
     .zoom-controls {
       position: absolute;
@@ -705,6 +731,12 @@
         <button class="btn btn-secondary" onclick="resetFilters()">Clear Filters</button>
       </div>
       
+      <!-- Mini-map -->
+      <div class="minimap" id="minimap">
+        <canvas id="minimap-canvas" width="150" height="100"></canvas>
+        <div class="minimap-viewport" id="minimap-viewport"></div>
+      </div>
+
       <!-- Zoom controls -->
       <div class="zoom-controls">
         <button class="zoom-btn" onclick="zoomIn()" title="Zoom In (+)">+</button>
@@ -1119,6 +1151,9 @@
         } else {
           document.getElementById('empty-state').classList.remove('visible');
         }
+        
+        // Update minimap after layout settles
+        setTimeout(updateMinimap, 600);
       } catch (err) {
         console.error('Failed to load graph:', err);
       } finally {
@@ -1637,8 +1672,78 @@
       }
     }
 
+    // Mini-map
+    function updateMinimap() {
+      const canvas = document.getElementById('minimap-canvas');
+      const ctx = canvas.getContext('2d');
+      const viewport = document.getElementById('minimap-viewport');
+      
+      if (!cy || cy.nodes().length === 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        viewport.style.display = 'none';
+        return;
+      }
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Get bounding box of all elements
+      const bb = cy.elements().boundingBox();
+      const padding = 10;
+      
+      // Calculate scale
+      const scaleX = (canvas.width - padding * 2) / bb.w;
+      const scaleY = (canvas.height - padding * 2) / bb.h;
+      const scale = Math.min(scaleX, scaleY, 1);
+      
+      // Draw nodes
+      cy.nodes().forEach(node => {
+        const pos = node.position();
+        const x = padding + (pos.x - bb.x1) * scale;
+        const y = padding + (pos.y - bb.y1) * scale;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = typeColors[node.data('type')] || '#666';
+        ctx.fill();
+      });
+      
+      // Draw edges
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 0.5;
+      cy.edges().forEach(edge => {
+        const source = edge.source().position();
+        const target = edge.target().position();
+        
+        ctx.beginPath();
+        ctx.moveTo(padding + (source.x - bb.x1) * scale, padding + (source.y - bb.y1) * scale);
+        ctx.lineTo(padding + (target.x - bb.x1) * scale, padding + (target.y - bb.y1) * scale);
+        ctx.stroke();
+      });
+      
+      // Update viewport indicator
+      const ext = cy.extent();
+      const vx = padding + (ext.x1 - bb.x1) * scale;
+      const vy = padding + (ext.y1 - bb.y1) * scale;
+      const vw = ext.w * scale;
+      const vh = ext.h * scale;
+      
+      viewport.style.display = 'block';
+      viewport.style.left = Math.max(0, vx) + 'px';
+      viewport.style.top = Math.max(0, vy) + 'px';
+      viewport.style.width = Math.min(vw, canvas.width) + 'px';
+      viewport.style.height = Math.min(vh, canvas.height) + 'px';
+    }
+
+    // Update minimap on pan/zoom
+    function setupMinimapUpdates() {
+      cy.on('pan zoom', debounce(updateMinimap, 100));
+      cy.on('add remove', debounce(updateMinimap, 100));
+    }
+
     // Initialize
     initCytoscape();
+    setupMinimapUpdates();
     loadTypes();
     loadGraph();
   </script>
