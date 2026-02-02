@@ -153,6 +153,13 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - Commit: `d5b5615`
 - **Total session commits:** 10 (since Phase 6 was "complete")
 
+### 2026-02-02 22:32 AEDT
+- ✅ Delete edges from detail panel (× button)
+- ✅ Right-click context menu (edit, link, mark complete, delete)
+- ✅ Double-click node to edit
+- Commits: `15c2a56`, `4931904`, `0f84c0d`
+- **Total:** 13 commits since Phase 6 "complete"
+
 ---
 
 ## Commands
