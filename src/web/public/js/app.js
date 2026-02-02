@@ -1102,19 +1102,22 @@
         return;
       }
 
-      for (const node of selected) {
-        try {
-          await fetch('/api/node', {
+      const results = await Promise.allSettled(
+        selected.map(node => 
+          fetch('/api/node', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: node.id(), status }),
-          });
-        } catch (err) {
-          console.error('Failed to update:', node.id(), err);
-        }
-      }
+          })
+        )
+      );
 
-      toast(`Set ${selected.length} nodes to ${status}`, 'success');
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) {
+        toast(`Updated ${selected.length - failed}, ${failed} failed`, 'error');
+      } else {
+        toast(`Set ${selected.length} nodes to ${status}`, 'success');
+      }
       select.value = '';
       clearSelection();
       loadGraph();
@@ -1126,14 +1129,19 @@
       
       if (!confirm(`Delete ${selected.length} nodes? This cannot be undone.`)) return;
 
-      for (const node of selected) {
-        try {
-          await fetch(`/api/node?id=${encodeURIComponent(node.id())}`, {
+      const results = await Promise.allSettled(
+        selected.map(node => 
+          fetch(`/api/node?id=${encodeURIComponent(node.id())}`, {
             method: 'DELETE',
-          });
-        } catch (err) {
-          console.error('Failed to delete:', node.id(), err);
-        }
+          })
+        )
+      );
+
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) {
+        toast(`Deleted ${selected.length - failed}, ${failed} failed`, 'error');
+      } else {
+        toast(`Deleted ${selected.length} nodes`, 'success');
       }
 
       clearSelection();
