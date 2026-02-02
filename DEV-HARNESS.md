@@ -32,8 +32,8 @@ This document is my continuous development loop. I use it to plan, build, test, 
 ### Visual Polish
 - [x] Legend shows node types
 - [x] Legend matches all 12 defined types
-- [ ] Edge labels on hover
-- [ ] Node status icons (checkmark for complete, etc.)
+- [x] Edge labels on hover
+- [x] Status visual indicators (border colors: complete=teal, blocked=dashed red, active=yellow)
 - [ ] Better node labels (truncate long names)
 - [x] Highlight connected nodes on hover
 
