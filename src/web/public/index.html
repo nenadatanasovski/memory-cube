@@ -762,6 +762,15 @@
 
       <button class="btn" onclick="loadGraph()">Apply Filters</button>
       <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+
+      <h2>Layout</h2>
+      <select id="layout-select" onchange="changeLayout()">
+        <option value="cose">Physics (CoSE)</option>
+        <option value="circle">Circle</option>
+        <option value="grid">Grid</option>
+        <option value="breadthfirst">Hierarchy</option>
+        <option value="concentric">Concentric</option>
+      </select>
       
       <h2>Export</h2>
       <button class="btn btn-secondary" onclick="exportJSON()">📄 JSON</button>
@@ -1382,6 +1391,48 @@
       document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
       document.querySelector('.type-chip.all-types').classList.add('active');
       loadGraph();
+    }
+
+    // Layout change
+    function changeLayout() {
+      const layoutName = document.getElementById('layout-select').value;
+      const layoutOptions = {
+        cose: {
+          name: 'cose',
+          animate: true,
+          animationDuration: 500,
+          nodeRepulsion: 8000,
+          idealEdgeLength: 100,
+        },
+        circle: {
+          name: 'circle',
+          animate: true,
+          animationDuration: 500,
+        },
+        grid: {
+          name: 'grid',
+          animate: true,
+          animationDuration: 500,
+          rows: Math.ceil(Math.sqrt(cy.nodes().length)),
+        },
+        breadthfirst: {
+          name: 'breadthfirst',
+          animate: true,
+          animationDuration: 500,
+          directed: true,
+          spacingFactor: 1.5,
+        },
+        concentric: {
+          name: 'concentric',
+          animate: true,
+          animationDuration: 500,
+          concentric: node => node.degree(),
+          levelWidth: () => 2,
+        },
+      };
+
+      cy.layout(layoutOptions[layoutName] || layoutOptions.cose).run();
+      setTimeout(updateMinimap, 600);
     }
 
     // Zoom functions
