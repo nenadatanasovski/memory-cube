@@ -316,6 +316,20 @@
       color: #e94560;
     }
 
+    .copy-id-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.6;
+      padding: 2px 6px;
+      vertical-align: middle;
+    }
+
+    .copy-id-btn:hover {
+      opacity: 1;
+    }
+
     .detail-content {
       padding: 16px;
       overflow-y: auto;
@@ -1554,7 +1568,10 @@
         const data = await res.json();
         const node = data.node;
 
-        document.getElementById('detail-title').textContent = node.title;
+        document.getElementById('detail-title').innerHTML = `
+          ${node.title}
+          <button class="copy-id-btn" onclick="copyNodeId()" title="Copy ID">📎</button>
+        `;
         
         document.getElementById('detail-meta').innerHTML = `
           <div class="meta-item">
@@ -1932,6 +1949,15 @@
       if (btn && currentNodeId) {
         btn.textContent = starredNodes.has(currentNodeId) ? '⭐ Unstar' : '☆ Star';
       }
+    }
+
+    function copyNodeId() {
+      if (!currentNodeId) return;
+      navigator.clipboard.writeText(currentNodeId).then(() => {
+        toast('Copied: ' + currentNodeId, 'info', 2000);
+      }).catch(err => {
+        toast('Failed to copy', 'error');
+      });
     }
 
     // Undo/redo history
