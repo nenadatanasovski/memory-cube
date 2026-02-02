@@ -15,7 +15,7 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - [x] Filter by type, status, validity
 - [x] Search functionality
 - [x] Stats dashboard
-- [ ] Add/edit/delete nodes from UI
+- [x] Add/edit/delete nodes from UI
 - [x] Export graph (PNG, JSON)
 - [ ] Undo/redo support
 
@@ -59,7 +59,7 @@ This document is my continuous development loop. I use it to plan, build, test, 
 4. ~~No zoom/pan controls visible~~ ✅ FIXED (bottom-right buttons)
 
 ### P2 - Medium
-5. No CRUD operations from UI
+5. ~~No CRUD operations from UI~~ ✅ FIXED (create, edit, delete)
 6. ~~No export functionality~~ ✅ FIXED (JSON + PNG export)
 7. Architecture doc is empty
 8. ~~No edge labels~~ ✅ FIXED (labels on hover)
@@ -131,6 +131,17 @@ This document is my continuous development loop. I use it to plan, build, test, 
 - Messaged Ned on Telegram with progress update
 - **Status:** All P0/P1 issues fixed, most visual polish done
 - **Waiting:** Ned's input on next priorities
+
+### 2026-02-02 22:28 AEDT
+- Ned said "Iterate" — continuing autonomously
+- ✅ CRUD operations: create, edit, delete nodes from UI
+- Added modal form for node creation/editing
+- Added edit/delete buttons in detail panel
+- New keyboard shortcut: `n` for new node
+- Backend: POST/PUT/DELETE /api/node endpoints
+- Tested: created node via API, now 8 nodes total
+- Commit: `3da4532`
+- **Next:** Continue iterating — mini-map? more polish?
 
 ---
 
